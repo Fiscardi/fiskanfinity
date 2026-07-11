@@ -1,0 +1,29 @@
+name: Compilar TikFinity Lite (Windows)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js (en el servidor de GitHub, no en tu PC)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Compilar el instalador (.exe)
+        run: npm run dist
+
+      - name: Subir el instalador como descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: TikFinity-Lite-Windows
+          path: dist/*.exe
