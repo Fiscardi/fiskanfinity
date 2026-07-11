@@ -20,7 +20,7 @@ jobs:
         run: npm install
 
       - name: Compilar el instalador (.exe)
-        run: npm run dist
+        run: npm run dist -- --publish=never
 
       - name: Subir el instalador como descargable
         uses: actions/upload-artifact@v4
