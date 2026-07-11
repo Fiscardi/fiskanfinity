@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Overlay - Ranking</title>
+<style>
+  html, body { margin:0; background: transparent; overflow: hidden; font-family: 'Inter', 'Segoe UI', sans-serif; }
+  #box {
+    width: 300px;
+    padding: 14px 16px;
+    background: rgba(15,16,24,0.85);
+    border: 2px solid #ffb648;
+    border-radius: 14px;
+    color: #fff;
+  }
+  #title {
+    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 10px;
+    color: #ffb648;
+  }
+  .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+    font-size: 14px;
+  }
+  .row:last-child { border-bottom: none; }
+  .rank {
+    font-family: 'JetBrains Mono', monospace;
+    color: #8890a6;
+    width: 18px;
+  }
+  .name { flex: 1; }
+  .amount {
+    font-family: 'JetBrains Mono', monospace;
+    color: #ffb648;
+  }
+  #empty { color: #8890a6; font-size: 13px; }
+</style>
+</head>
+<body>
+<div id="box">
+  <div id="title">Top regalos</div>
+  <div id="list"><div id="empty">Esperando regalos…</div></div>
+</div>
+<script>
+function render(ranking, title) {
+  if (title) document.getElementById('title').textContent = title;
+  const list = document.getElementById('list');
+  if (!ranking || ranking.length === 0) {
+    list.innerHTML = '<div id="empty">Esperando regalos…</div>';
+    return;
+  }
+  list.innerHTML = ranking.map((r, i) => `
+    <div class="row">
+      <span class="rank">${i + 1}</span>
+      <span class="name">${escapeHtml(r.user)}</span>
+      <span class="amount">${r.diamonds} 💎</span>
+    </div>`).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+function connectWs() {
+  const ws = new WebSocket('ws://localhost:8420/ws');
+  ws.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'profile') document.getElementById('title').textContent = msg.payload.overlays.ranking.title;
+    if (msg.type === 'ranking') render(msg.payload);
+  };
+  ws.onclose = () => setTimeout(connectWs, 1500);
+}
+connectWs();
+</script>
+</body>
+</html>

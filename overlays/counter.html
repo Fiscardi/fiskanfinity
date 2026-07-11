@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Overlay - Contador</title>
+<style>
+  html, body { margin:0; background: transparent; overflow: hidden; font-family: 'Inter', 'Segoe UI', sans-serif; }
+  #box {
+    display: flex;
+    gap: 14px;
+  }
+  .pill {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(15,16,24,0.85);
+    border: 2px solid #35d488;
+    border-radius: 999px;
+    padding: 8px 16px;
+    color: #fff;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .pill.viewers { border-color: #2dd4ff; }
+  .icon { font-size: 18px; }
+</style>
+</head>
+<body>
+<div id="box">
+  <div class="pill likes" id="likesPill" style="display:none"><span class="icon">❤️</span><span id="likesVal">0</span></div>
+  <div class="pill viewers" id="viewersPill" style="display:none"><span class="icon">👀</span><span id="viewersVal">0</span></div>
+</div>
+<script>
+function applyVisibility(counter) {
+  document.getElementById('likesPill').style.display = counter.showLikes ? 'flex' : 'none';
+  document.getElementById('viewersPill').style.display = counter.showViewers ? 'flex' : 'none';
+}
+
+function connectWs() {
+  const ws = new WebSocket('ws://localhost:8420/ws');
+  ws.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'profile') applyVisibility(msg.payload.overlays.counter);
+    if (msg.type === 'likes') document.getElementById('likesVal').textContent = msg.payload.total;
+    if (msg.type === 'viewers') document.getElementById('viewersVal').textContent = msg.payload.count;
+  };
+  ws.onclose = () => setTimeout(connectWs, 1500);
+}
+connectWs();
+</script>
+</body>
+</html>

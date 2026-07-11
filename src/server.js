@@ -1,0 +1,288 @@
+const path = require('path');
+const express = require('express');
+const http = require('http');
+const { WebSocketServer } = require('ws');
+// Usamos el módulo "legacy" del paquete: mantiene la API clásica
+// (WebcastPushConnection + eventos por nombre de string) que es más simple
+// de mantener frente a la nueva API basada en TikTokLiveConnection.
+const { WebcastPushConnection } = require('tiktok-live-connector/legacy');
+const { ProfileStore, MAX_PROFILES } = require('./profileStore');
+
+function createServer({ userDataDir, port = 8420 }) {
+  const app = express();
+  app.use(express.json());
+
+  const store = new ProfileStore(userDataDir);
+
+  const server = http.createServer(app);
+  const wss = new WebSocketServer({ server, path: '/ws' });
+
+  let tiktokConnection = null;
+  let currentUsername = null;
+  let connectionState = { connected: false, username: null, roomId: null, error: null };
+  const rankingTotals = new Map(); // uniqueId -> { user, diamonds }
+
+  function broadcast(type, payload) {
+    const msg = JSON.stringify({ type, payload });
+    wss.clients.forEach(client => {
+      if (client.readyState === 1) client.send(msg);
+    });
+  }
+
+  function broadcastStatus() {
+    broadcast('status', connectionState);
+  }
+
+  function broadcastProfile() {
+    broadcast('profile', store.getActive());
+  }
+
+  // Envía el estado actual apenas un overlay/panel se conecta por WS
+  wss.on('connection', ws => {
+    ws.send(JSON.stringify({ type: 'status', payload: connectionState }));
+    ws.send(JSON.stringify({ type: 'profile', payload: store.getActive() }));
+    ws.send(JSON.stringify({ type: 'ranking', payload: getRankingArray() }));
+  });
+
+  function getRankingArray() {
+    return Array.from(rankingTotals.values())
+      .sort((a, b) => b.diamonds - a.diamonds)
+      .slice(0, store.getActive().overlays.ranking.maxEntries || 5);
+  }
+
+  function resetRanking() {
+    rankingTotals.clear();
+    broadcast('ranking', getRankingArray());
+  }
+
+  async function connectToTikTok(username) {
+    if (tiktokConnection) {
+      try { tiktokConnection.disconnect(); } catch (e) { /* noop */ }
+      tiktokConnection = null;
+    }
+    currentUsername = username;
+    tiktokConnection = new WebcastPushConnection(username, {
+      processInitialData: false,
+      enableExtendedGiftInfo: true
+    });
+
+    if (store.getActive().overlays.ranking.resetOnConnect) resetRanking();
+
+    tiktokConnection.on('connected', state => {
+      connectionState = { connected: true, username, roomId: state.roomId, error: null };
+      broadcastStatus();
+    });
+
+    tiktokConnection.on('disconnected', () => {
+      connectionState = { connected: false, username, roomId: null, error: 'Desconectado' };
+      broadcastStatus();
+    });
+
+    tiktokConnection.on('streamEnd', () => {
+      connectionState = { connected: false, username, roomId: null, error: 'El vivo terminó' };
+      broadcastStatus();
+    });
+
+    tiktokConnection.on('gift', data => {
+      const profile = store.getActive();
+      const cfg = profile.overlays.alert;
+      // En una racha de regalos tipo1, solo procesamos cuando repeatEnd:true
+      if (data.giftType === 1 && !data.repeatEnd) return;
+
+      const diamonds = (data.diamondCount || 0) * (data.repeatCount || 1);
+      const displayName = data.nickname || data.uniqueId || 'Alguien';
+
+      // Ranking
+      const key = data.uniqueId || displayName;
+      const prev = rankingTotals.get(key) || { user: displayName, diamonds: 0 };
+      prev.diamonds += diamonds;
+      prev.user = displayName;
+      rankingTotals.set(key, prev);
+      if (profile.overlays.ranking.enabled) broadcast('ranking', getRankingArray());
+
+      // Meta
+      if (profile.overlays.goal.enabled) {
+        const updated = store.addToGoal(profile.id, diamonds);
+        broadcast('goal', updated.overlays.goal);
+      }
+
+      // Alerta
+      if (cfg.enabled && diamonds >= (cfg.minDiamonds || 1) && cfg.showGifts) {
+        broadcast('alert', {
+          kind: 'gift',
+          user: displayName,
+          gift: data.giftName || 'un regalo',
+          count: data.repeatCount || 1,
+          diamonds,
+          text: cfg.giftText
+            .replace('{user}', displayName)
+            .replace('{gift}', data.giftName || 'un regalo')
+            .replace('{count}', data.repeatCount || 1)
+        });
+      }
+    });
+
+    tiktokConnection.on('follow', data => {
+      const profile = store.getActive();
+      const cfg = profile.overlays.alert;
+      if (!cfg.enabled || !cfg.showFollows) return;
+      const displayName = data.nickname || data.uniqueId || 'Alguien';
+      broadcast('alert', {
+        kind: 'follow',
+        user: displayName,
+        text: cfg.followText.replace('{user}', displayName)
+      });
+    });
+
+    tiktokConnection.on('subscribe', data => {
+      const profile = store.getActive();
+      const cfg = profile.overlays.alert;
+      if (!cfg.enabled || !cfg.showSubs) return;
+      const displayName = data.nickname || data.uniqueId || 'Alguien';
+      broadcast('alert', {
+        kind: 'sub',
+        user: displayName,
+        text: cfg.subText.replace('{user}', displayName)
+      });
+    });
+
+    let likeAccum = 0;
+    let lastMilestoneSent = 0;
+    tiktokConnection.on('like', data => {
+      const profile = store.getActive();
+      likeAccum += data.likeCount || 1;
+      broadcast('likes', { total: data.totalLikeCount || likeAccum, delta: data.likeCount || 1 });
+
+      const cfg = profile.overlays.alert;
+      if (cfg.enabled && cfg.showLikeMilestones) {
+        const step = cfg.likeMilestoneStep || 100;
+        const total = data.totalLikeCount || likeAccum;
+        if (total - lastMilestoneSent >= step) {
+          lastMilestoneSent = total;
+          broadcast('alert', {
+            kind: 'likeMilestone',
+            text: `¡Llegaron a ${total} likes!`
+          });
+        }
+      }
+    });
+
+    tiktokConnection.on('roomUser', data => {
+      broadcast('viewers', { count: data.viewerCount || 0 });
+    });
+
+    connectionState = { connected: false, username, roomId: null, error: null, connecting: true };
+    broadcastStatus();
+
+    try {
+      const state = await tiktokConnection.connect();
+      connectionState = { connected: true, username, roomId: state.roomId, error: null };
+    } catch (err) {
+      connectionState = { connected: false, username, roomId: null, error: err.message || String(err) };
+    }
+    broadcastStatus();
+    return connectionState;
+  }
+
+  function disconnectFromTikTok() {
+    if (tiktokConnection) {
+      try { tiktokConnection.disconnect(); } catch (e) { /* noop */ }
+      tiktokConnection = null;
+    }
+    connectionState = { connected: false, username: currentUsername, roomId: null, error: null };
+    broadcastStatus();
+  }
+
+  // ---- API REST ----
+  app.get('/api/status', (req, res) => res.json(connectionState));
+
+  app.post('/api/connect', async (req, res) => {
+    const { username } = req.body;
+    if (!username) return res.status(400).json({ error: 'Falta username' });
+    const clean = username.replace('@', '').trim();
+    try {
+      const state = await connectToTikTok(clean);
+      res.json(state);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/disconnect', (req, res) => {
+    disconnectFromTikTok();
+    res.json({ ok: true });
+  });
+
+  app.get('/api/profiles', (req, res) => {
+    res.json({ profiles: store.getAll(), activeProfileId: store.data.activeProfileId, max: MAX_PROFILES });
+  });
+
+  app.post('/api/profiles', (req, res) => {
+    try {
+      const profile = store.create(req.body.name);
+      res.json(profile);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.put('/api/profiles/:id', (req, res) => {
+    try {
+      const profile = store.update(req.params.id, req.body);
+      if (profile.id === store.data.activeProfileId) broadcastProfile();
+      res.json(profile);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/profiles/:id', (req, res) => {
+    try {
+      store.remove(req.params.id);
+      res.json({ ok: true });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/profiles/:id/activate', (req, res) => {
+    try {
+      const profile = store.setActive(req.params.id);
+      if (profile.overlays.ranking.resetOnConnect) resetRanking();
+      broadcastProfile();
+      res.json(profile);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/profiles/:id/goal/reset', (req, res) => {
+    const profile = store.resetGoal(req.params.id);
+    if (profile.id === store.data.activeProfileId) broadcast('goal', profile.overlays.goal);
+    res.json(profile);
+  });
+
+  app.post('/api/test-alert/:kind', (req, res) => {
+    const kind = req.params.kind;
+    const samples = {
+      gift: { kind: 'gift', user: 'Usuario_Prueba', gift: 'Rosa', count: 5, diamonds: 5, text: 'Usuario_Prueba envió Rosa x5' },
+      follow: { kind: 'follow', user: 'Usuario_Prueba', text: 'Usuario_Prueba empezó a seguirte' },
+      sub: { kind: 'sub', user: 'Usuario_Prueba', text: 'Usuario_Prueba se suscribió' },
+      likeMilestone: { kind: 'likeMilestone', text: '¡Llegaron a 1000 likes!' }
+    };
+    broadcast('alert', samples[kind] || samples.gift);
+    res.json({ ok: true });
+  });
+
+  // ---- Overlays y panel estáticos ----
+  app.use('/overlay', express.static(path.join(__dirname, '..', 'overlays')));
+  app.use('/', express.static(path.join(__dirname, '..', 'renderer')));
+
+  server.listen(port, () => {
+    console.log(`TikFinity Lite escuchando en http://localhost:${port}`);
+  });
+
+  return { app, server, port, store };
+}
+
+module.exports = { createServer };

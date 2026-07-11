@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Overlay - Meta</title>
+<style>
+  html, body { margin:0; background: transparent; overflow: hidden; font-family: 'Inter', 'Segoe UI', sans-serif; }
+  #box {
+    width: 520px;
+    padding: 14px 20px;
+    background: rgba(15,16,24,0.85);
+    border: 2px solid var(--accent, #2dd4ff);
+    border-radius: 14px;
+    color: #fff;
+  }
+  #label {
+    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+  }
+  #label .pct { color: var(--accent, #2dd4ff); }
+  #track {
+    height: 16px;
+    background: rgba(255,255,255,0.08);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  #fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--accent, #2dd4ff), #ff2d78);
+    transition: width 0.6s ease;
+  }
+  #numbers {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 13px;
+    color: #b9bfd6;
+    font-family: 'JetBrains Mono', monospace;
+  }
+</style>
+</head>
+<body>
+<div id="box">
+  <div id="label"><span id="labelText">Meta</span><span class="pct" id="pct">0%</span></div>
+  <div id="track"><div id="fill"></div></div>
+  <div id="numbers"><span id="current">0 💎</span><span id="target">/ 0 💎</span></div>
+</div>
+<script>
+function render(goal) {
+  const pct = Math.min(100, Math.round((goal.current / (goal.target || 1)) * 100));
+  document.getElementById('box').style.setProperty('--accent', goal.accentColor || '#2dd4ff');
+  document.getElementById('labelText').textContent = goal.label || 'Meta';
+  document.getElementById('pct').textContent = pct + '%';
+  document.getElementById('fill').style.width = pct + '%';
+  document.getElementById('current').textContent = (goal.current || 0) + ' 💎';
+  document.getElementById('target').textContent = '/ ' + (goal.target || 0) + ' 💎';
+}
+
+function connectWs() {
+  const ws = new WebSocket('ws://localhost:8420/ws');
+  ws.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'profile') render(msg.payload.overlays.goal);
+    if (msg.type === 'goal') render(msg.payload);
+  };
+  ws.onclose = () => setTimeout(connectWs, 1500);
+}
+connectWs();
+</script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+{
+  "name": "tikfinity-lite",
+  "version": "1.0.0",
+  "description": "Panel de overlays y alertas para TikTok LIVE, para uso local/personal.",
+  "main": "main.js",
+  "author": "Tu",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "tiktok-live-connector": "^2.4.0",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.local.tikfinitylite",
+    "productName": "TikFinity Lite",
+    "files": [
+      "main.js",
+      "preload.js",
+      "src/**/*",
+      "renderer/**/*",
+      "overlays/**/*",
+      "assets/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": { "target": "nsis" },
+    "mac": { "target": "dmg" },
+    "linux": { "target": "AppImage" }
+  }
+}

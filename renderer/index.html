@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>TikFinity Lite</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">TikFinity <span>Lite</span></div>
+    <div id="onair" class="onair"><span class="dot"></span><span id="onairText">Desconectado</span></div>
+    <div class="wave" id="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <form class="connect-form" id="connectForm">
+      <input type="text" id="usernameInput" placeholder="@usuario de TikTok" />
+      <button type="submit" class="primary" id="connectBtn">Conectar</button>
+    </form>
+  </header>
+
+  <aside class="sidebar">
+    <h2>Perfiles de acción</h2>
+    <div id="profileList"></div>
+    <button class="add-profile" id="addProfileBtn">+ Nuevo perfil</button>
+    <div class="slot-count" id="slotCount"></div>
+  </aside>
+
+  <main class="main">
+    <div class="grid" id="cardsGrid"></div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="renderer.js"></script>
+</body>
+</html>

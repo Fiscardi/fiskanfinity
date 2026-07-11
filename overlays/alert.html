@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Overlay - Alertas</title>
+<style>
+  html, body { margin:0; background: transparent; overflow: hidden; }
+  * { box-sizing: border-box; }
+  #stage {
+    width: 100vw; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: rgba(15, 16, 24, 0.88);
+    border: 2px solid var(--accent, #ff2d78);
+    border-radius: 16px;
+    padding: 16px 26px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    transform: translateY(30px) scale(0.9);
+    opacity: 0;
+    transition: all 0.35s cubic-bezier(.2,.9,.3,1.4);
+  }
+  .card.show { transform: translateY(0) scale(1); opacity: 1; }
+  .icon {
+    font-size: 40px;
+    filter: drop-shadow(0 0 8px var(--accent, #ff2d78));
+  }
+  .text .user {
+    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: #fff;
+  }
+  .text .desc {
+    font-size: 15px;
+    color: #cfd3e6;
+    margin-top: 2px;
+  }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+const params = new URLSearchParams(location.search);
+const stage = document.getElementById('stage');
+let queue = [];
+let showing = false;
+let accentColor = '#ff2d78';
+let duration = 6000;
+
+const icons = { gift: '🎁', follow: '➕', sub: '⭐', likeMilestone: '❤️' };
+
+function connectWs() {
+  const ws = new WebSocket('ws://localhost:8420/ws');
+  ws.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'profile') {
+      accentColor = msg.payload.overlays.alert.accentColor || accentColor;
+      duration = msg.payload.overlays.alert.duration || duration;
+    }
+    if (msg.type === 'alert') {
+      queue.push(msg.payload);
+      processQueue();
+    }
+  };
+  ws.onclose = () => setTimeout(connectWs, 1500);
+}
+
+function processQueue() {
+  if (showing || queue.length === 0) return;
+  showing = true;
+  const alert = queue.shift();
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.style.setProperty('--accent', accentColor);
+  card.innerHTML = `
+    <div class="icon">${icons[alert.kind] || '✨'}</div>
+    <div class="text">
+      <div class="user">${escapeHtml(alert.user || '')}</div>
+      <div class="desc">${escapeHtml(alert.text || '')}</div>
+    </div>`;
+  stage.innerHTML = '';
+  stage.appendChild(card);
+  requestAnimationFrame(() => card.classList.add('show'));
+  setTimeout(() => {
+    card.classList.remove('show');
+    setTimeout(() => {
+      stage.innerHTML = '';
+      showing = false;
+      processQueue();
+    }, 350);
+  }, duration);
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+connectWs();
+</script>
+</body>
+</html>
