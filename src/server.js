@@ -3,17 +3,16 @@ const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 // tiktok-live-connector/legacy es un módulo ESM: no se puede cargar con
-   // require() normal, hace falta un import() dinámico (funciona igual desde
-   // código CommonJS como este).
-   let WebcastPushConnection = null;
-   async function getWebcastPushConnection() {
-     if (!WebcastPushConnection) {
-       const mod = await import('tiktok-live-connector/legacy');
-       WebcastPushConnection = mod.WebcastPushConnection;
-     }
-     return WebcastPushConnection;
-   }
-const { WebcastPushConnection } = require('tiktok-live-connector/legacy');
+// require() normal, hace falta un import() dinámico (funciona igual desde
+// código CommonJS como este).
+let WebcastPushConnection = null;
+async function getWebcastPushConnection() {
+  if (!WebcastPushConnection) {
+    const mod = await import('tiktok-live-connector/legacy');
+    WebcastPushConnection = mod.WebcastPushConnection;
+  }
+  return WebcastPushConnection;
+}
 const { ProfileStore, MAX_PROFILES } = require('./profileStore');
 
 function createServer({ userDataDir, port = 8420 }) {
@@ -69,8 +68,8 @@ function createServer({ userDataDir, port = 8420 }) {
       tiktokConnection = null;
     }
     currentUsername = username;
-       const WebcastPushConnection = await getWebcastPushConnection();
-       tiktokConnection = new WebcastPushConnection(username, {
+    const WebcastPushConnection = await getWebcastPushConnection();
+    tiktokConnection = new WebcastPushConnection(username, {
       processInitialData: false,
       enableExtendedGiftInfo: true
     });
