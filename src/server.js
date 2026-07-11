@@ -2,9 +2,17 @@ const path = require('path');
 const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
-// Usamos el módulo "legacy" del paquete: mantiene la API clásica
-// (WebcastPushConnection + eventos por nombre de string) que es más simple
-// de mantener frente a la nueva API basada en TikTokLiveConnection.
+// tiktok-live-connector/legacy es un módulo ESM: no se puede cargar con
+   // require() normal, hace falta un import() dinámico (funciona igual desde
+   // código CommonJS como este).
+   let WebcastPushConnection = null;
+   async function getWebcastPushConnection() {
+     if (!WebcastPushConnection) {
+       const mod = await import('tiktok-live-connector/legacy');
+       WebcastPushConnection = mod.WebcastPushConnection;
+     }
+     return WebcastPushConnection;
+   }
 const { WebcastPushConnection } = require('tiktok-live-connector/legacy');
 const { ProfileStore, MAX_PROFILES } = require('./profileStore');
 
@@ -61,7 +69,8 @@ function createServer({ userDataDir, port = 8420 }) {
       tiktokConnection = null;
     }
     currentUsername = username;
-    tiktokConnection = new WebcastPushConnection(username, {
+       const WebcastPushConnection = await getWebcastPushConnection();
+       tiktokConnection = new WebcastPushConnection(username, {
       processInitialData: false,
       enableExtendedGiftInfo: true
     });
