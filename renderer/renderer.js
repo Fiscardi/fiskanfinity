@@ -57,12 +57,14 @@ async function loadProfiles() {
   maxProfiles = data.max;
   renderProfiles();
   renderCards();
+  renderActionsAndEvents();
 }
 
 async function activateProfile(id) {
   activeProfileId = id;
   renderProfiles();
   renderCards();
+  renderActionsAndEvents();
   await api(`/api/profiles/${id}/activate`, { method: 'POST' });
 }
 
@@ -139,12 +141,7 @@ function renderCards() {
     <div class="field-row"><span>Suscripciones</span><button class="switch small ${alert.showSubs ? 'on' : ''}" data-field="alert.showSubs" data-bool="1"></button></div>
     <div class="field-row"><span>Hitos de likes</span><button class="switch small ${alert.showLikeMilestones ? 'on' : ''}" data-field="alert.showLikeMilestones" data-bool="1"></button></div>
     <div class="field-row"><span>Diamantes mínimos</span><input type="number" min="1" value="${alert.minDiamonds}" data-field="alert.minDiamonds" data-num="1" /></div>
-    <div class="field-row"><span>Duración (ms)</span><input type="number" min="1000" step="500" value="${alert.duration}" data-field="alert.duration" data-num="1" /></div>
-    <div class="card-actions">
-      <button class="small" data-test="gift">Probar regalo</button>
-      <button class="small" data-test="follow">Probar follow</button>
-      <button class="small" data-test="sub">Probar sub</button>
-    </div>`;
+    <div class="field-row"><span>Duración (ms)</span><input type="number" min="1000" step="500" value="${alert.duration}" data-field="alert.duration" data-num="1" /></div>`;
 
   const goal = profile.overlays.goal;
   const pct = Math.min(100, Math.round((goal.current / (goal.target || 1)) * 100));
@@ -170,9 +167,108 @@ function renderCards() {
     cardShell('🎁', 'Alertas', 'alert', profile, alertBody, 'alert') +
     cardShell('🎯', 'Barra de meta', 'goal', profile, goalBody, 'goal') +
     cardShell('🏆', 'Top regalos', 'ranking', profile, rankingBody, 'ranking') +
-    cardShell('📊', 'Contador en vivo', 'counter', profile, counterBody, 'counter');
+    cardShell('📊', 'Contador en vivo', 'counter', profile, counterBody, 'counter') +
+    eventsCard();
 
   wireCardEvents(profile);
+  wireEventsCard();
+}
+
+function eventsCard() {
+  return `
+  <div class="card wide" id="eventsCard">
+    <div class="card-head">
+      <span class="led on"></span>
+      <div class="card-title">Eventos y pruebas</div>
+    </div>
+    <p class="hint">Simulá eventos para chequear que las alertas y overlays reaccionen bien, sin necesidad de estar en vivo.</p>
+
+    <div class="test-grid">
+      <div class="test-form">
+        <div class="field-row"><span>Usuario</span><input type="text" id="testUser" value="Usuario_Prueba" /></div>
+        <div class="field-row"><span>Regalo</span><input type="text" id="testGift" value="Rosa" /></div>
+        <div class="field-row"><span>Cantidad</span><input type="number" id="testCount" value="5" min="1" /></div>
+        <div class="field-row"><span>Diamantes</span><input type="number" id="testDiamonds" value="5" min="1" /></div>
+        <div class="field-row"><span>Sumar a meta y ranking</span><button class="switch small" id="testAffect"></button></div>
+        <button class="primary" id="sendTestGift" style="width:100%; margin-top:4px;">🎁 Enviar regalo de prueba</button>
+      </div>
+      <div class="test-quick">
+        <button data-quick="follow">➕ Probar seguidor nuevo</button>
+        <button data-quick="sub">⭐ Probar suscripción</button>
+        <button data-quick="likeMilestone">❤️ Probar hito de likes</button>
+        <button data-quick="likes">📈 Simular tanda de likes</button>
+        <button data-quick="viewers">👀 Simular espectadores</button>
+        <button data-quick="clearlog" class="ghost">🧹 Limpiar log</button>
+      </div>
+    </div>
+
+    <div class="event-log" id="eventLog">
+      <div class="log-empty">Los eventos que vayan llegando (reales o de prueba) van a aparecer acá.</div>
+    </div>
+  </div>`;
+}
+
+let eventLogEntries = [];
+function pushLog(icon, label, detail) {
+  const time = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  eventLogEntries.unshift({ time, icon, label, detail });
+  eventLogEntries = eventLogEntries.slice(0, 40);
+  renderLog();
+}
+
+function renderLog() {
+  const box = document.getElementById('eventLog');
+  if (!box) return;
+  if (eventLogEntries.length === 0) {
+    box.innerHTML = '<div class="log-empty">Los eventos que vayan llegando (reales o de prueba) van a aparecer acá.</div>';
+    return;
+  }
+  box.innerHTML = eventLogEntries.map(e => `
+    <div class="log-row">
+      <span class="log-time mono">${e.time}</span>
+      <span class="log-icon">${e.icon}</span>
+      <span class="log-label">${escapeHtml(e.label)}</span>
+      <span class="log-detail">${escapeHtml(e.detail || '')}</span>
+    </div>`).join('');
+}
+
+function wireEventsCard() {
+  const affectBtn = document.getElementById('testAffect');
+  if (affectBtn) affectBtn.addEventListener('click', () => affectBtn.classList.toggle('on'));
+
+  const sendGiftBtn = document.getElementById('sendTestGift');
+  if (sendGiftBtn) {
+    sendGiftBtn.addEventListener('click', async () => {
+      const body = {
+        user: document.getElementById('testUser').value,
+        gift: document.getElementById('testGift').value,
+        count: document.getElementById('testCount').value,
+        diamonds: document.getElementById('testDiamonds').value,
+        affectGoalAndRanking: document.getElementById('testAffect').classList.contains('on')
+      };
+      await api('/api/test-alert/gift', { method: 'POST', body: JSON.stringify(body) });
+    });
+  }
+
+  document.querySelectorAll('[data-quick]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const kind = btn.dataset.quick;
+      if (kind === 'clearlog') {
+        eventLogEntries = [];
+        renderLog();
+        return;
+      }
+      if (kind === 'likes') {
+        await api('/api/test-counter/likes', { method: 'POST', body: JSON.stringify({}) });
+        return;
+      }
+      if (kind === 'viewers') {
+        await api('/api/test-counter/viewers', { method: 'POST', body: JSON.stringify({}) });
+        return;
+      }
+      await api(`/api/test-alert/${kind}`, { method: 'POST', body: JSON.stringify({}) });
+    });
+  });
 }
 
 function wireCardEvents(profile) {
@@ -273,9 +369,215 @@ function connectWs() {
       const p = activeProfile();
       if (p) { p.overlays.goal = msg.payload; renderCards(); }
     }
+    logIncoming(msg);
   };
   ws.onclose = () => setTimeout(connectWs, 1500);
 }
+
+function logIncoming(msg) {
+  switch (msg.type) {
+    case 'alert': {
+      const icons = { gift: '🎁', follow: '➕', sub: '⭐', likeMilestone: '❤️' };
+      pushLog(icons[msg.payload.kind] || '✨', 'Alerta: ' + msg.payload.kind, msg.payload.text || '');
+      break;
+    }
+    case 'goal':
+      pushLog('🎯', 'Meta actualizada', `${msg.payload.current} / ${msg.payload.target} 💎`);
+      break;
+    case 'ranking':
+      if (Array.isArray(msg.payload) && msg.payload.length) {
+        pushLog('🏆', 'Ranking actualizado', msg.payload.map(r => `${r.user} (${r.diamonds}💎)`).join(', '));
+      }
+      break;
+    case 'likes':
+      pushLog('❤️', 'Likes', `total ${msg.payload.total}`);
+      break;
+    case 'viewers':
+      pushLog('👀', 'Espectadores', `${msg.payload.count}`);
+      break;
+    case 'status':
+      if (msg.payload.connected) pushLog('🟢', 'Conectado', '@' + msg.payload.username);
+      else if (msg.payload.error) pushLog('🔴', 'Estado', msg.payload.error);
+      break;
+    default:
+      break;
+  }
+}
+
+// ---------- Pestañas ----------
+document.getElementById('tabOverlays').addEventListener('click', () => switchTab('overlays'));
+document.getElementById('tabActions').addEventListener('click', () => switchTab('actions'));
+function switchTab(tab) {
+  document.getElementById('tabOverlays').classList.toggle('active', tab === 'overlays');
+  document.getElementById('tabActions').classList.toggle('active', tab === 'actions');
+  document.getElementById('cardsGrid').style.display = tab === 'overlays' ? 'grid' : 'none';
+  document.getElementById('actionsView').style.display = tab === 'actions' ? 'grid' : 'none';
+}
+
+// ---------- Acciones (librería) ----------
+function renderActionsAndEvents() {
+  const profile = activeProfile();
+  if (!profile) return;
+  renderActionsList(profile);
+  renderEventsTable(profile);
+}
+
+function renderActionsList(profile) {
+  const list = document.getElementById('actionsList');
+  if (profile.actions.length === 0) {
+    list.innerHTML = '<p class="av-hint">Todavía no creaste ninguna acción.</p>';
+    return;
+  }
+  list.innerHTML = profile.actions.map(a => `
+    <div class="action-card" data-action-id="${a.id}">
+      <div class="ac-top">
+        <input class="ac-name" type="text" value="${escapeHtml(a.name)}" data-a-field="name" />
+        <button class="small ghost danger" data-a-remove="${a.id}">✕</button>
+      </div>
+      <div class="field-row"><span>Texto (usá {user})</span><input type="text" value="${escapeHtml(a.text)}" data-a-field="text" /></div>
+      <div class="field-row"><span>Sonido (URL .mp3, opcional)</span><input type="text" value="${escapeHtml(a.soundUrl || '')}" data-a-field="soundUrl" placeholder="https://..." /></div>
+      <div class="ac-row2">
+        <input type="color" value="${a.accentColor}" data-a-field="accentColor" title="Color" />
+        <input type="number" min="1000" step="500" value="${a.duration}" data-a-field="duration" title="Duración (ms)" />
+        <button class="small" data-a-test="${a.id}">Probar</button>
+      </div>
+    </div>`).join('');
+
+  list.querySelectorAll('[data-a-field]').forEach(el => {
+    const card = el.closest('.action-card');
+    const actionId = card.dataset.actionId;
+    const field = el.dataset.aField;
+    const isNum = el.type === 'number';
+    const handler = () => saveAction(profile.id, actionId, { [field]: isNum ? Number(el.value) : el.value });
+    el.addEventListener(el.type === 'color' || isNum ? 'change' : 'change', handler);
+  });
+  list.querySelectorAll('[data-a-remove]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar esta acción? Los eventos que la usan quedarán sin acción.')) return;
+      await api(`/api/profiles/${profile.id}/actions/${btn.dataset.aRemove}`, { method: 'DELETE' });
+      await loadProfiles();
+      renderActionsAndEvents();
+    });
+  });
+  list.querySelectorAll('[data-a-test]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const action = profile.actions.find(a => a.id === btn.dataset.aTest);
+      await api(`/api/profiles/${profile.id}/events`, { method: 'POST', body: JSON.stringify({ triggerType: 'follow', actionId: action.id }) })
+        .then(async ev => {
+          await api(`/api/profiles/${profile.id}/events/${ev.id}/test`, { method: 'POST' });
+          await api(`/api/profiles/${profile.id}/events/${ev.id}`, { method: 'DELETE' });
+        });
+    });
+  });
+}
+
+let actionSaveTimers = {};
+function saveAction(profileId, actionId, patch) {
+  const profile = profiles.find(p => p.id === profileId);
+  const action = profile.actions.find(a => a.id === actionId);
+  Object.assign(action, patch);
+  clearTimeout(actionSaveTimers[actionId]);
+  actionSaveTimers[actionId] = setTimeout(async () => {
+    try {
+      await api(`/api/profiles/${profileId}/actions/${actionId}`, { method: 'PUT', body: JSON.stringify(patch) });
+      renderEventsTable(profile); // por si cambió el nombre, refresca los selects
+    } catch (err) { toast(err.message); }
+  }, 400);
+}
+
+document.getElementById('addActionBtn').addEventListener('click', async () => {
+  const profile = activeProfile();
+  await api(`/api/profiles/${profile.id}/actions`, { method: 'POST', body: JSON.stringify({}) });
+  await loadProfiles();
+  renderActionsAndEvents();
+});
+
+// ---------- Eventos (tabla de disparadores) ----------
+const triggerLabels = { gift: 'Regalo', like: 'Likes', follow: 'Follow', subscribe: 'Suscripción' };
+
+function renderEventsTable(profile) {
+  const body = document.getElementById('eventsBody');
+  if (profile.events.length === 0) {
+    body.innerHTML = `<tr><td colspan="4" class="av-hint">Todavía no creaste ningún evento.</td></tr>`;
+    return;
+  }
+  body.innerHTML = profile.events.map(ev => `
+    <tr data-event-id="${ev.id}">
+      <td><button class="switch small ${ev.enabled ? 'on' : ''}" data-e-toggle="1" title="Activo"></button></td>
+      <td>
+        <div class="trigger-cell">
+          <select data-e-field="triggerType">
+            ${Object.entries(triggerLabels).map(([v, l]) => `<option value="${v}" ${ev.triggerType === v ? 'selected' : ''}>${l}</option>`).join('')}
+          </select>
+          ${ev.triggerType === 'gift' ? `
+            <input type="text" placeholder="Nombre exacto (vacío = cualquiera)" value="${escapeHtml(ev.giftName || '')}" data-e-field="giftName" style="width:150px" />
+            <input type="number" min="1" value="${ev.minCoins}" data-e-field="minCoins" title="Monedas mínimas" />` : ''}
+          ${ev.triggerType === 'like' ? `
+            <input type="number" min="1" value="${ev.minLikes}" data-e-field="minLikes" title="Likes mínimos" />` : ''}
+        </div>
+      </td>
+      <td>
+        <select data-e-field="actionId">
+          <option value="">— sin acción —</option>
+          ${profile.actions.map(a => `<option value="${a.id}" ${ev.actionId === a.id ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <div class="row-actions">
+          <button class="small" data-e-test="1" ${!ev.actionId ? 'disabled' : ''}>Probar</button>
+          <button class="small ghost danger" data-e-remove="1">✕</button>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  body.querySelectorAll('tr').forEach(row => {
+    const eventId = row.dataset.eventId;
+
+    row.querySelector('[data-e-toggle]').addEventListener('click', () => {
+      const ev = profile.events.find(e => e.id === eventId);
+      saveEvent(profile.id, eventId, { enabled: !ev.enabled });
+    });
+
+    row.querySelectorAll('[data-e-field]').forEach(el => {
+      el.addEventListener('change', () => {
+        const field = el.dataset.eField;
+        const val = el.tagName === 'SELECT' && field === 'actionId' ? (el.value || null) : (el.type === 'number' ? Number(el.value) : el.value);
+        saveEvent(profile.id, eventId, { [field]: val }, field === 'triggerType');
+      });
+    });
+
+    const testBtn = row.querySelector('[data-e-test]');
+    if (testBtn) testBtn.addEventListener('click', async () => {
+      try {
+        await api(`/api/profiles/${profile.id}/events/${eventId}/test`, { method: 'POST' });
+        toast('Probando acción…');
+      } catch (err) { toast(err.message); }
+    });
+
+    row.querySelector('[data-e-remove]').addEventListener('click', async () => {
+      await api(`/api/profiles/${profile.id}/events/${eventId}`, { method: 'DELETE' });
+      await loadProfiles();
+      renderActionsAndEvents();
+    });
+  });
+}
+
+async function saveEvent(profileId, eventId, patch, needsRerender) {
+  const profile = profiles.find(p => p.id === profileId);
+  const ev = profile.events.find(e => e.id === eventId);
+  Object.assign(ev, patch);
+  try {
+    await api(`/api/profiles/${profileId}/events/${eventId}`, { method: 'PUT', body: JSON.stringify(patch) });
+    if (needsRerender) renderEventsTable(profile);
+  } catch (err) { toast(err.message); }
+}
+
+document.getElementById('addEventBtn').addEventListener('click', async () => {
+  const profile = activeProfile();
+  await api(`/api/profiles/${profile.id}/events`, { method: 'POST', body: JSON.stringify({ triggerType: 'gift' }) });
+  await loadProfiles();
+  renderActionsAndEvents();
+});
 
 (async function init() {
   await loadProfiles();

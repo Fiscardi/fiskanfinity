@@ -52,7 +52,7 @@ let showing = false;
 let accentColor = '#ff2d78';
 let duration = 6000;
 
-const icons = { gift: '🎁', follow: '➕', sub: '⭐', likeMilestone: '❤️' };
+const icons = { gift: '🎁', follow: '➕', sub: '⭐', likeMilestone: '❤️', custom: '⚡' };
 
 function connectWs() {
   const ws = new WebSocket('ws://localhost:8420/ws');
@@ -66,6 +66,10 @@ function connectWs() {
       queue.push(msg.payload);
       processQueue();
     }
+    if (msg.type === 'customAction') {
+      queue.push({ kind: 'custom', text: msg.payload.text, _accentColor: msg.payload.accentColor, _duration: msg.payload.duration, _soundUrl: msg.payload.soundUrl });
+      processQueue();
+    }
   };
   ws.onclose = () => setTimeout(connectWs, 1500);
 }
@@ -74,13 +78,18 @@ function processQueue() {
   if (showing || queue.length === 0) return;
   showing = true;
   const alert = queue.shift();
+  const cardAccent = alert._accentColor || accentColor;
+  const cardDuration = alert._duration || duration;
+  if (alert._soundUrl) {
+    try { new Audio(alert._soundUrl).play().catch(() => {}); } catch (e) { /* noop */ }
+  }
   const card = document.createElement('div');
   card.className = 'card';
-  card.style.setProperty('--accent', accentColor);
+  card.style.setProperty('--accent', cardAccent);
   card.innerHTML = `
     <div class="icon">${icons[alert.kind] || '✨'}</div>
     <div class="text">
-      <div class="user">${escapeHtml(alert.user || '')}</div>
+      ${alert.user ? `<div class="user">${escapeHtml(alert.user)}</div>` : ''}
       <div class="desc">${escapeHtml(alert.text || '')}</div>
     </div>`;
   stage.innerHTML = '';
@@ -93,7 +102,7 @@ function processQueue() {
       showing = false;
       processQueue();
     }, 350);
-  }, duration);
+  }, cardDuration);
 }
 
 function escapeHtml(s) {

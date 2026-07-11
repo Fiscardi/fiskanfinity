@@ -44,7 +44,20 @@ function makeDefaultProfile(n) {
   return {
     id: 'p' + Date.now() + '_' + n,
     name: 'Perfil ' + n,
-    overlays: defaultOverlaysConfig()
+    overlays: defaultOverlaysConfig(),
+    actions: [],
+    events: []
+  };
+}
+
+function makeDefaultAction(n) {
+  return {
+    id: 'a' + Date.now() + '_' + n,
+    name: 'Acción ' + n,
+    text: '{user} activó "' + 'Acción ' + n + '"',
+    accentColor: '#ffb648',
+    duration: 5000,
+    soundUrl: ''
   };
 }
 
@@ -60,6 +73,11 @@ class ProfileStore {
         const raw = fs.readFileSync(this.filePath, 'utf-8');
         const parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.profiles) && parsed.profiles.length > 0) {
+          // Migración: perfiles guardados antes de que existieran acciones/eventos
+          parsed.profiles.forEach(p => {
+            if (!Array.isArray(p.actions)) p.actions = [];
+            if (!Array.isArray(p.events)) p.events = [];
+          });
           return parsed;
         }
       }
@@ -146,6 +164,77 @@ class ProfileStore {
     profile.overlays.goal.current = (profile.overlays.goal.current || 0) + amount;
     this.persist();
     return profile;
+  }
+
+  // ---- Acciones (librería reutilizable de "qué pasa" cuando dispara un evento) ----
+  createAction(profileId, data) {
+    const profile = this.data.profiles.find(p => p.id === profileId);
+    if (!profile) throw new Error('Perfil no encontrado');
+    const action = makeDefaultAction(profile.actions.length + 1);
+    Object.assign(action, {
+      name: data.name || action.name,
+      text: data.text || action.text,
+      accentColor: data.accentColor || action.accentColor,
+      duration: data.duration || action.duration,
+      soundUrl: data.soundUrl || ''
+    });
+    profile.actions.push(action);
+    this.persist();
+    return action;
+  }
+
+  updateAction(profileId, actionId, patch) {
+    const profile = this.data.profiles.find(p => p.id === profileId);
+    if (!profile) throw new Error('Perfil no encontrado');
+    const action = profile.actions.find(a => a.id === actionId);
+    if (!action) throw new Error('Acción no encontrada');
+    Object.assign(action, patch);
+    this.persist();
+    return action;
+  }
+
+  removeAction(profileId, actionId) {
+    const profile = this.data.profiles.find(p => p.id === profileId);
+    if (!profile) throw new Error('Perfil no encontrado');
+    profile.actions = profile.actions.filter(a => a.id !== actionId);
+    // Cualquier evento que usaba esta acción queda sin acción asignada
+    profile.events.forEach(e => { if (e.actionId === actionId) e.actionId = null; });
+    this.persist();
+  }
+
+  // ---- Eventos (disparadores: qué gatilla cada acción) ----
+  createEvent(profileId, data) {
+    const profile = this.data.profiles.find(p => p.id === profileId);
+    if (!profile) throw new Error('Perfil no encontrado');
+    const event = {
+      id: 'e' + Date.now() + '_' + (profile.events.length + 1),
+      enabled: true,
+      triggerType: data.triggerType || 'gift',
+      giftName: data.giftName || '',
+      minCoins: data.minCoins || 1,
+      minLikes: data.minLikes || 100,
+      actionId: data.actionId || null
+    };
+    profile.events.push(event);
+    this.persist();
+    return event;
+  }
+
+  updateEvent(profileId, eventId, patch) {
+    const profile = this.data.profiles.find(p => p.id === profileId);
+    if (!profile) throw new Error('Perfil no encontrado');
+    const event = profile.events.find(e => e.id === eventId);
+    if (!event) throw new Error('Evento no encontrado');
+    Object.assign(event, patch);
+    this.persist();
+    return event;
+  }
+
+  removeEvent(profileId, eventId) {
+    const profile = this.data.profiles.find(p => p.id === profileId);
+    if (!profile) throw new Error('Perfil no encontrado');
+    profile.events = profile.events.filter(e => e.id !== eventId);
+    this.persist();
   }
 }
 

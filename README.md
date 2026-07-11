@@ -40,7 +40,16 @@ En la barra izquierda podés:
 
 - Crear hasta 5 perfiles con **+ Nuevo perfil**.
 - Cambiar de perfil activo con un clic (por ejemplo, para bajarle el volumen a las alertas en un directo tranquilo).
-- Cada perfil guarda su propia configuración de alertas, meta, ranking y contador — se guarda automáticamente.
+- Cada perfil guarda su propia configuración de alertas, meta, ranking, contador **y también sus propias Acciones y Eventos** — se guarda automáticamente.
+
+## 4-bis. Acciones y Eventos (disparadores personalizados)
+
+Además de la alerta genérica de regalos, tenés una pestaña **"Acciones y Eventos"** arriba del panel para armar reglas más finas, tipo "cuando llega tal regalo específico, pasa tal otra cosa":
+
+- **Acciones**: la librería de "qué pasa". Cada acción tiene un texto (podés usar `{user}` para que se reemplace por el nombre de quien disparó el evento), un color, una duración, y opcionalmente una URL de sonido `.mp3` que se reproduce en el overlay de alertas.
+- **Eventos**: la tabla de "qué lo dispara". Cada evento define un trigger (un regalo específico por nombre + monedas mínimas, un umbral de likes, un follow, o una suscripción) y qué Acción de la librería ejecuta. Podés activar/desactivar cada evento con el switch, y tocar **Probar** para testearlo sin estar en vivo.
+
+Estas acciones se muestran en el mismo overlay de Alertas (`/overlay/alert.html`), así que no hace falta agregar una fuente nueva en OBS para verlas.
 
 ## 5. Agregar los overlays a OBS
 

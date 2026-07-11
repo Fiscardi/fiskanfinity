@@ -25,7 +25,34 @@
   </aside>
 
   <main class="main">
+    <div class="tabbar">
+      <button class="tab active" id="tabOverlays">Overlays</button>
+      <button class="tab" id="tabActions">Acciones y Eventos</button>
+    </div>
     <div class="grid" id="cardsGrid"></div>
+    <div class="actions-view" id="actionsView" style="display:none">
+      <div class="av-col">
+        <div class="av-head">
+          <h3>Acciones</h3>
+          <button class="small primary" id="addActionBtn">+ Nueva acción</button>
+        </div>
+        <p class="av-hint">Una acción define qué se ve/escucha (texto, color, duración, sonido). Después la asignás a uno o más eventos.</p>
+        <div id="actionsList" class="action-cards"></div>
+      </div>
+      <div class="av-col">
+        <div class="av-head">
+          <h3>Eventos</h3>
+          <button class="small primary" id="addEventBtn">+ Nuevo evento</button>
+        </div>
+        <p class="av-hint">Un evento define qué lo dispara (un regalo, likes, follow, sub) y qué acción ejecuta.</p>
+        <table class="events-table" id="eventsTable">
+          <thead>
+            <tr><th></th><th>Trigger</th><th>Acción</th><th></th></tr>
+          </thead>
+          <tbody id="eventsBody"></tbody>
+        </table>
+      </div>
+    </div>
   </main>
 </div>
 
