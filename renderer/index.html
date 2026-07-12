@@ -2,18 +2,19 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
-<title>TikFinity Lite</title>
+<title>FiskLive</title>
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <div class="app">
   <header class="topbar">
-    <div class="brand">TikFinity <span>Lite</span></div>
+    <div class="brand">FiskLive</div>
     <div id="onair" class="onair"><span class="dot"></span><span id="onairText">Desconectado</span></div>
     <div class="wave" id="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
     <form class="connect-form" id="connectForm">
       <input type="text" id="usernameInput" placeholder="@usuario de TikTok" />
       <button type="submit" class="primary" id="connectBtn">Conectar</button>
+      <button type="button" class="ghost" id="openSettingsBtn" title="Configuración">⚙️</button>
     </form>
   </header>
 
@@ -44,7 +45,7 @@
           <h3>Eventos</h3>
           <button class="small primary" id="addEventBtn">+ Nuevo evento</button>
         </div>
-        <p class="av-hint">Un evento define qué lo dispara (un regalo, likes, follow, sub) y qué acción ejecuta. El nombre del regalo se autocompleta con la lista real de tu cuenta apenas te conectás una vez (dura mientras la app esté abierta).</p>
+        <p class="av-hint">Un evento define qué lo dispara (un regalo, likes, follow, sub) y qué acción ejecuta. Para el regalo, tocá el botón y elegí de la grilla.</p>
         <table class="events-table" id="eventsTable">
           <thead>
             <tr><th></th><th>Trigger</th><th>Acción</th><th></th></tr>
@@ -67,6 +68,30 @@
     <input type="text" id="giftSearchInput" class="modal-search" placeholder="Buscar regalo por nombre..." />
     <p class="gift-source-banner" id="giftSourceBanner" style="display:none"></p>
     <div class="gift-grid" id="giftGrid"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="settingsModal" style="display:none">
+  <div class="modal-box" style="width:min(480px,92vw)">
+    <div class="modal-head">
+      <h3>Configuración de conexión</h3>
+      <button class="ghost small" id="closeSettingsModal">✕</button>
+    </div>
+    <p class="av-hint">
+      Para conectar con TikTok LIVE hace falta una clave gratuita de <b>Euler Stream</b> (el servicio que "firma" la conexión). Es gratis y se saca en un minuto:
+    </p>
+    <ol class="av-hint" style="padding-left:18px; margin:0 0 4px;">
+      <li>Andá a <a href="https://www.eulerstream.com" id="eulerLink" target="_blank" rel="noopener" style="color:var(--cyan)">eulerstream.com</a> y creá una cuenta gratis.</li>
+      <li>En el dashboard, generá una API Key.</li>
+      <li>Pegala acá abajo y guardá.</li>
+    </ol>
+    <div class="field-row" style="flex-direction:column; align-items:stretch; gap:6px;">
+      <span>Tu API Key de Euler Stream</span>
+      <input type="text" id="signApiKeyInput" placeholder="Pegá tu clave acá" style="width:100%; font-family:'JetBrains Mono', monospace;" />
+    </div>
+    <div class="card-actions">
+      <button class="primary" id="saveSettingsBtn">Guardar</button>
+    </div>
   </div>
 </div>
 

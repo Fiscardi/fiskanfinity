@@ -15,6 +15,7 @@ async function getWebcastPushConnection() {
   return WebcastPushConnection;
 }
 const { ProfileStore, MAX_PROFILES } = require('./profileStore');
+const { AppConfig } = require('./appConfig');
 const DEFAULT_GIFTS = require('./defaultGifts');
 
 function createServer({ userDataDir, port = 8420 }) {
@@ -22,6 +23,7 @@ function createServer({ userDataDir, port = 8420 }) {
   app.use(express.json());
 
   const store = new ProfileStore(userDataDir);
+  const config = new AppConfig(userDataDir);
   const giftsCacheFile = path.join(userDataDir, 'gifts-cache.json');
 
   const server = http.createServer(app);
@@ -143,9 +145,11 @@ function createServer({ userDataDir, port = 8420 }) {
     }
     currentUsername = username;
     const WebcastPushConnection = await getWebcastPushConnection();
+    const signApiKey = config.get('signApiKey');
     tiktokConnection = new WebcastPushConnection(username, {
       processInitialData: false,
-      enableExtendedGiftInfo: true
+      enableExtendedGiftInfo: true,
+      ...(signApiKey ? { signApiKey } : {})
     });
 
     if (store.getActive().overlays.ranking.resetOnConnect) resetRanking();
@@ -273,7 +277,11 @@ function createServer({ userDataDir, port = 8420 }) {
         broadcast('gifts', { source: giftsSource, gifts: availableGifts });
       }
     } catch (err) {
-      connectionState = { connected: false, username, roomId: null, error: err.message || String(err) };
+      let message = err.message || String(err);
+      if (/Business plan|eulerstream|signature/i.test(message) && !config.get('signApiKey')) {
+        message = 'Falta configurar tu clave gratuita de conexión (Euler Stream). Tocá el ⚙️ de arriba y pegala ahí.';
+      }
+      connectionState = { connected: false, username, roomId: null, error: message };
     }
     broadcastStatus();
     return connectionState;
@@ -290,6 +298,13 @@ function createServer({ userDataDir, port = 8420 }) {
 
   // ---- API REST ----
   app.get('/api/status', (req, res) => res.json(connectionState));
+
+  app.get('/api/config', (req, res) => res.json({ signApiKey: config.get('signApiKey') || '' }));
+
+  app.post('/api/config', (req, res) => {
+    config.set('signApiKey', (req.body.signApiKey || '').trim());
+    res.json({ ok: true });
+  });
 
   app.get('/api/gifts', (req, res) => res.json({ source: giftsSource, gifts: availableGifts }));
 
@@ -460,7 +475,7 @@ function createServer({ userDataDir, port = 8420 }) {
   app.use('/', express.static(path.join(__dirname, '..', 'renderer')));
 
   server.listen(port, () => {
-    console.log(`TikFinity Lite escuchando en http://localhost:${port}`);
+    console.log(`FiskLive escuchando en http://localhost:${port}`);
   });
 
   return { app, server, port, store };

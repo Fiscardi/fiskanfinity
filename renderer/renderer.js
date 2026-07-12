@@ -668,6 +668,29 @@ document.getElementById('giftModal').addEventListener('click', e => {
 });
 document.getElementById('giftSearchInput').addEventListener('input', e => renderGiftGrid(e.target.value));
 
+// ---------- Configuración (clave de Euler Stream) ----------
+document.getElementById('openSettingsBtn').addEventListener('click', async () => {
+  try {
+    const cfg = await api('/api/config');
+    document.getElementById('signApiKeyInput').value = cfg.signApiKey || '';
+  } catch (err) { /* noop */ }
+  document.getElementById('settingsModal').style.display = 'flex';
+});
+document.getElementById('closeSettingsModal').addEventListener('click', () => {
+  document.getElementById('settingsModal').style.display = 'none';
+});
+document.getElementById('settingsModal').addEventListener('click', e => {
+  if (e.target.id === 'settingsModal') document.getElementById('settingsModal').style.display = 'none';
+});
+document.getElementById('saveSettingsBtn').addEventListener('click', async () => {
+  const signApiKey = document.getElementById('signApiKeyInput').value.trim();
+  try {
+    await api('/api/config', { method: 'POST', body: JSON.stringify({ signApiKey }) });
+    document.getElementById('settingsModal').style.display = 'none';
+    toast('Clave guardada. Probá conectar de nuevo.');
+  } catch (err) { toast(err.message); }
+});
+
 (async function init() {
   await loadProfiles();
   const status = await api('/api/status');

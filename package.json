@@ -1,5 +1,5 @@
 {
-  "name": "tikfinity-lite",
+  "name": "fisklive",
   "version": "1.0.0",
   "description": "Panel de overlays y alertas para TikTok LIVE, para uso local/personal.",
   "main": "main.js",
@@ -20,8 +20,8 @@
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.local.tikfinitylite",
-    "productName": "TikFinity Lite",
+    "appId": "com.local.fisklive",
+    "productName": "FiskLive",
     "files": [
       "main.js",
       "preload.js",

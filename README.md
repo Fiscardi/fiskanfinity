@@ -1,4 +1,4 @@
-# TikFinity Lite
+# FiskLive
 
 App de escritorio (Electron) gratuita, para uso personal, que conecta con tu TikTok LIVE y te da:
 
@@ -28,11 +28,20 @@ Esto abre la ventana de la app y levanta un servidor local en `http://localhost:
 
 ## 3. Conectar tu cuenta
 
+Primero necesitás una clave gratuita de **Euler Stream** (el servicio que "firma" la conexión con TikTok — sin esto vas a ver un error de "Business plan" al conectar):
+
+1. En la app, tocá el ⚙️ que está al lado del botón "Conectar".
+2. Andá a [eulerstream.com](https://www.eulerstream.com), creá una cuenta gratis.
+3. En su dashboard, generá una API Key y copiala.
+4. Volvé a FiskLive, pegala en el campo y tocá **Guardar**. Queda guardada en tu compu, no hace falta repetir esto cada vez.
+
+Ahora sí, para conectar:
+
 1. En la barra superior, escribí tu `@usuario` de TikTok (el mismo que usás para transmitir) y tocá **Conectar**.
 2. Tenés que estar **en vivo en TikTok** en ese momento; si no, la conexión va a fallar.
 3. Cuando conecta, el indicador de arriba se pone verde y dice "EN VIVO".
 
-> Nota: esto usa una conexión no oficial (la misma que usa TikFinity y herramientas similares) para leer los eventos públicos de tu propio live. No hace falta ninguna contraseña ni token.
+> Nota: esto usa una conexión no oficial (la misma que usa TikFinity y herramientas similares) para leer los eventos públicos de tu propio live. No hace falta ninguna contraseña de TikTok ni token de esa cuenta — solo la clave gratuita de Euler Stream, que es del servicio de firmado, no de tu cuenta de TikTok.
 
 ## 4. Perfiles de acción
 
@@ -81,8 +90,8 @@ Este proyecto ya trae listo un archivo (`.github/workflows/build.yml`) que le pi
 4. En la página del repo recién creado, vas a ver un link que dice **"uploading an existing file"** — tocalo.
 5. Abrí en tu explorador de archivos la carpeta `tikfinity-lite` que descomprimiste, seleccioná **todo su contenido** (todos los archivos y subcarpetas de adentro, no la carpeta en sí) y arrastralo a la página de GitHub.
 6. Abajo de todo escribí un mensaje corto (por ejemplo "primera subida") y tocá **Commit changes**.
-7. Andá a la pestaña **Actions** (arriba del repo). Vas a ver una ejecución llamada "Compilar TikFinity Lite (Windows)" con un círculo amarillo (en proceso). Esperá 3-5 minutos hasta que se ponga verde ✅.
-8. Tocá esa ejecución, bajá hasta la sección **Artifacts** y descargá **TikFinity-Lite-Windows** (es un .zip).
+7. Andá a la pestaña **Actions** (arriba del repo). Vas a ver una ejecución llamada "Compilar FiskLive (Windows)" con un círculo amarillo (en proceso). Esperá 3-5 minutos hasta que se ponga verde ✅.
+8. Tocá esa ejecución, bajá hasta la sección **Artifacts** y descargá **FiskLive-Windows** (es un .zip).
 9. Descomprimilo: adentro está el instalador `.exe`. Doble clic, instalar, y listo — te queda un ícono como cualquier programa. **A partir de acá ya no necesitás Node.js ni la terminal nunca más**, ni en tu PC ni en la de nadie a quien se lo pases.
 
 Cada vez que quieras actualizar la app (por ejemplo si te agrego una función nueva), solo tenés que volver a subir los archivos actualizados al mismo repositorio y GitHub va a compilar un instalador nuevo solo.
