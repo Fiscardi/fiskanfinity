@@ -25,7 +25,6 @@
   </aside>
 
   <main class="main">
-    <datalist id="giftsDatalist"></datalist>
     <div class="tabbar">
       <button class="tab active" id="tabOverlays">Overlays</button>
       <button class="tab" id="tabActions">Acciones y Eventos</button>
@@ -58,6 +57,17 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="giftModal" style="display:none">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h3>Elegir regalo</h3>
+      <button class="ghost small" id="closeGiftModal">✕</button>
+    </div>
+    <input type="text" id="giftSearchInput" class="modal-search" placeholder="Buscar regalo por nombre..." />
+    <div class="gift-grid" id="giftGrid"></div>
+  </div>
+</div>
 
 <script src="renderer.js"></script>
 </body>

@@ -371,7 +371,6 @@ function connectWs() {
     }
     if (msg.type === 'gifts') {
       giftsCatalog = msg.payload;
-      renderGiftsDatalist();
     }
     logIncoming(msg);
   };
@@ -514,7 +513,9 @@ function renderEventsTable(profile) {
             ${Object.entries(triggerLabels).map(([v, l]) => `<option value="${v}" ${ev.triggerType === v ? 'selected' : ''}>${l}</option>`).join('')}
           </select>
           ${ev.triggerType === 'gift' ? `
-            <input type="text" placeholder="Nombre exacto (vacío = cualquiera)" value="${escapeHtml(ev.giftName || '')}" data-e-field="giftName" list="giftsDatalist" style="width:150px" />
+            <button class="gift-picker-btn" data-e-gift-picker="1">
+              ${giftThumbHtml(ev.giftName)}<span>${ev.giftName ? escapeHtml(ev.giftName) : 'Cualquier regalo'}</span>
+            </button>
             <input type="number" min="1" value="${ev.minCoins}" data-e-field="minCoins" title="Monedas mínimas" />` : ''}
           ${ev.triggerType === 'like' ? `
             <input type="number" min="1" value="${ev.minLikes}" data-e-field="minLikes" title="Likes mínimos" />` : ''}
@@ -547,9 +548,11 @@ function renderEventsTable(profile) {
         const field = el.dataset.eField;
         const val = el.tagName === 'SELECT' && field === 'actionId' ? (el.value || null) : (el.type === 'number' ? Number(el.value) : el.value);
         saveEvent(profile.id, eventId, { [field]: val }, field === 'triggerType');
-        if (field === 'giftName' && val) maybeAutofillMinCoins(profile.id, eventId, val);
       });
     });
+
+    const giftPickerBtn = row.querySelector('[data-e-gift-picker]');
+    if (giftPickerBtn) giftPickerBtn.addEventListener('click', () => openGiftModal(profile.id, eventId));
 
     const testBtn = row.querySelector('[data-e-test]');
     if (testBtn) testBtn.addEventListener('click', async () => {
@@ -584,24 +587,76 @@ document.getElementById('addEventBtn').addEventListener('click', async () => {
   renderActionsAndEvents();
 });
 
-// ---------- Catálogo de regalos reales (para autocompletar el nombre en eventos) ----------
+// ---------- Catálogo de regalos reales + selector emergente ----------
 let giftsCatalog = [];
-function renderGiftsDatalist() {
-  const dl = document.getElementById('giftsDatalist');
-  dl.innerHTML = giftsCatalog.map(g => `<option value="${escapeHtml(g.name)}">${escapeHtml(g.name)} — ${g.diamondCost} 💎</option>`).join('');
+let giftModalTarget = null; // { profileId, eventId }
+
+function giftThumbHtml(giftName) {
+  if (!giftName) return '<span class="gift-thumb gift-thumb-empty">🎁</span>';
+  const g = giftsCatalog.find(x => x.name.toLowerCase() === giftName.toLowerCase());
+  return g && g.icon
+    ? `<img class="gift-thumb" src="${escapeHtml(g.icon)}" alt="" />`
+    : '<span class="gift-thumb gift-thumb-empty">🎁</span>';
 }
+
 async function loadGifts() {
   try {
     giftsCatalog = await api('/api/gifts');
-    renderGiftsDatalist();
   } catch (err) { /* noop */ }
 }
 
-// Autocompleta las monedas mínimas con el costo real del regalo elegido
-function maybeAutofillMinCoins(profileId, eventId, giftName) {
-  const gift = giftsCatalog.find(g => g.name.toLowerCase() === giftName.toLowerCase());
-  if (gift) saveEvent(profileId, eventId, { minCoins: gift.diamondCost || 1 }, true);
+function openGiftModal(profileId, eventId) {
+  giftModalTarget = { profileId, eventId };
+  document.getElementById('giftSearchInput').value = '';
+  renderGiftGrid('');
+  document.getElementById('giftModal').style.display = 'flex';
+  document.getElementById('giftSearchInput').focus();
 }
+
+function closeGiftModal() {
+  document.getElementById('giftModal').style.display = 'none';
+  giftModalTarget = null;
+}
+
+function renderGiftGrid(filterText) {
+  const grid = document.getElementById('giftGrid');
+  const filtered = giftsCatalog.filter(g => g.name.toLowerCase().includes(filterText.toLowerCase()));
+
+  const anyTile = !filterText ? `
+    <button class="gift-tile gift-tile-any" data-gift-name="" data-gift-coins="1">
+      <div class="gift-tile-noicon">✨</div>
+      <span class="gt-name">Cualquier regalo</span>
+      <span class="gt-coins">sin filtro</span>
+    </button>` : '';
+
+  if (filtered.length === 0 && giftsCatalog.length === 0) {
+    grid.innerHTML = anyTile + '<p class="av-hint">Todavía no hay catálogo cargado — conectate a tu cuenta una vez y volvé a abrir esto.</p>';
+  } else if (filtered.length === 0) {
+    grid.innerHTML = anyTile + '<p class="av-hint">No hay regalos que coincidan con la búsqueda.</p>';
+  } else {
+    grid.innerHTML = anyTile + filtered.map(g => `
+      <button class="gift-tile" data-gift-name="${escapeHtml(g.name)}" data-gift-coins="${g.diamondCost}">
+        ${g.icon ? `<img src="${escapeHtml(g.icon)}" alt="" />` : '<div class="gift-tile-noicon">🎁</div>'}
+        <span class="gt-name">${escapeHtml(g.name)}</span>
+        <span class="gt-coins">${g.diamondCost} 💎</span>
+      </button>`).join('');
+  }
+
+  grid.querySelectorAll('[data-gift-name]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!giftModalTarget) return;
+      const { profileId, eventId } = giftModalTarget;
+      saveEvent(profileId, eventId, { giftName: btn.dataset.giftName, minCoins: Number(btn.dataset.giftCoins) || 1 }, true);
+      closeGiftModal();
+    });
+  });
+}
+
+document.getElementById('closeGiftModal').addEventListener('click', closeGiftModal);
+document.getElementById('giftModal').addEventListener('click', e => {
+  if (e.target.id === 'giftModal') closeGiftModal();
+});
+document.getElementById('giftSearchInput').addEventListener('input', e => renderGiftGrid(e.target.value));
 
 (async function init() {
   await loadProfiles();
