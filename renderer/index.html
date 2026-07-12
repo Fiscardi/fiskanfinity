@@ -25,6 +25,7 @@
   </aside>
 
   <main class="main">
+    <datalist id="giftsDatalist"></datalist>
     <div class="tabbar">
       <button class="tab active" id="tabOverlays">Overlays</button>
       <button class="tab" id="tabActions">Acciones y Eventos</button>
@@ -44,7 +45,7 @@
           <h3>Eventos</h3>
           <button class="small primary" id="addEventBtn">+ Nuevo evento</button>
         </div>
-        <p class="av-hint">Un evento define qué lo dispara (un regalo, likes, follow, sub) y qué acción ejecuta.</p>
+        <p class="av-hint">Un evento define qué lo dispara (un regalo, likes, follow, sub) y qué acción ejecuta. El nombre del regalo se autocompleta con la lista real de tu cuenta apenas te conectás una vez (dura mientras la app esté abierta).</p>
         <table class="events-table" id="eventsTable">
           <thead>
             <tr><th></th><th>Trigger</th><th>Acción</th><th></th></tr>

@@ -27,7 +27,21 @@ function createServer({ userDataDir, port = 8420 }) {
   let tiktokConnection = null;
   let currentUsername = null;
   let connectionState = { connected: false, username: null, roomId: null, error: null };
+  let availableGifts = []; // catálogo de regalos de la cuenta conectada, para el selector de eventos
   const rankingTotals = new Map(); // uniqueId -> { user, diamonds }
+
+  function normalizeGifts(rawList) {
+    if (!Array.isArray(rawList)) return [];
+    return rawList
+      .map(g => ({
+        id: g.id,
+        name: g.name,
+        diamondCost: g.diamond_count ?? g.diamondCount ?? 0,
+        icon: (g.image && (g.image.url_list?.[0] || g.image.urlList?.[0])) || g.icon || ''
+      }))
+      .filter(g => g.name)
+      .sort((a, b) => a.diamondCost - b.diamondCost);
+  }
 
   function broadcast(type, payload) {
     const msg = JSON.stringify({ type, payload });
@@ -49,6 +63,7 @@ function createServer({ userDataDir, port = 8420 }) {
     ws.send(JSON.stringify({ type: 'status', payload: connectionState }));
     ws.send(JSON.stringify({ type: 'profile', payload: store.getActive() }));
     ws.send(JSON.stringify({ type: 'ranking', payload: getRankingArray() }));
+    ws.send(JSON.stringify({ type: 'gifts', payload: availableGifts }));
   });
 
   function getRankingArray() {
@@ -225,6 +240,8 @@ function createServer({ userDataDir, port = 8420 }) {
     try {
       const state = await tiktokConnection.connect();
       connectionState = { connected: true, username, roomId: state.roomId, error: null };
+      availableGifts = normalizeGifts(tiktokConnection.availableGifts || state.availableGifts);
+      broadcast('gifts', availableGifts);
     } catch (err) {
       connectionState = { connected: false, username, roomId: null, error: err.message || String(err) };
     }
@@ -243,6 +260,8 @@ function createServer({ userDataDir, port = 8420 }) {
 
   // ---- API REST ----
   app.get('/api/status', (req, res) => res.json(connectionState));
+
+  app.get('/api/gifts', (req, res) => res.json(availableGifts));
 
   app.post('/api/connect', async (req, res) => {
     const { username } = req.body;

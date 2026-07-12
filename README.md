@@ -47,7 +47,7 @@ En la barra izquierda podés:
 Además de la alerta genérica de regalos, tenés una pestaña **"Acciones y Eventos"** arriba del panel para armar reglas más finas, tipo "cuando llega tal regalo específico, pasa tal otra cosa":
 
 - **Acciones**: la librería de "qué pasa". Cada acción tiene un texto (podés usar `{user}` para que se reemplace por el nombre de quien disparó el evento), un color, una duración, y opcionalmente una URL de sonido `.mp3` que se reproduce en el overlay de alertas.
-- **Eventos**: la tabla de "qué lo dispara". Cada evento define un trigger (un regalo específico por nombre + monedas mínimas, un umbral de likes, un follow, o una suscripción) y qué Acción de la librería ejecuta. Podés activar/desactivar cada evento con el switch, y tocar **Probar** para testearlo sin estar en vivo.
+- **Eventos**: la tabla de "qué lo dispara". Cada evento define un trigger (un regalo específico por nombre + monedas mínimas, un umbral de likes, un follow, o una suscripción) y qué Acción de la librería ejecuta. Podés activar/desactivar cada evento con el switch, y tocar **Probar** para testearlo sin estar en vivo. El campo de nombre de regalo se autocompleta con el catálogo real de tu cuenta apenas te conectás una vez (dura mientras la app esté abierta), y al elegir uno de la lista te completa solo las monedas mínimas con su costo real.
 
 Estas acciones se muestran en el mismo overlay de Alertas (`/overlay/alert.html`), así que no hace falta agregar una fuente nueva en OBS para verlas.
 

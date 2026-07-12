@@ -369,6 +369,10 @@ function connectWs() {
       const p = activeProfile();
       if (p) { p.overlays.goal = msg.payload; renderCards(); }
     }
+    if (msg.type === 'gifts') {
+      giftsCatalog = msg.payload;
+      renderGiftsDatalist();
+    }
     logIncoming(msg);
   };
   ws.onclose = () => setTimeout(connectWs, 1500);
@@ -510,7 +514,7 @@ function renderEventsTable(profile) {
             ${Object.entries(triggerLabels).map(([v, l]) => `<option value="${v}" ${ev.triggerType === v ? 'selected' : ''}>${l}</option>`).join('')}
           </select>
           ${ev.triggerType === 'gift' ? `
-            <input type="text" placeholder="Nombre exacto (vacío = cualquiera)" value="${escapeHtml(ev.giftName || '')}" data-e-field="giftName" style="width:150px" />
+            <input type="text" placeholder="Nombre exacto (vacío = cualquiera)" value="${escapeHtml(ev.giftName || '')}" data-e-field="giftName" list="giftsDatalist" style="width:150px" />
             <input type="number" min="1" value="${ev.minCoins}" data-e-field="minCoins" title="Monedas mínimas" />` : ''}
           ${ev.triggerType === 'like' ? `
             <input type="number" min="1" value="${ev.minLikes}" data-e-field="minLikes" title="Likes mínimos" />` : ''}
@@ -543,6 +547,7 @@ function renderEventsTable(profile) {
         const field = el.dataset.eField;
         const val = el.tagName === 'SELECT' && field === 'actionId' ? (el.value || null) : (el.type === 'number' ? Number(el.value) : el.value);
         saveEvent(profile.id, eventId, { [field]: val }, field === 'triggerType');
+        if (field === 'giftName' && val) maybeAutofillMinCoins(profile.id, eventId, val);
       });
     });
 
@@ -579,9 +584,29 @@ document.getElementById('addEventBtn').addEventListener('click', async () => {
   renderActionsAndEvents();
 });
 
+// ---------- Catálogo de regalos reales (para autocompletar el nombre en eventos) ----------
+let giftsCatalog = [];
+function renderGiftsDatalist() {
+  const dl = document.getElementById('giftsDatalist');
+  dl.innerHTML = giftsCatalog.map(g => `<option value="${escapeHtml(g.name)}">${escapeHtml(g.name)} — ${g.diamondCost} 💎</option>`).join('');
+}
+async function loadGifts() {
+  try {
+    giftsCatalog = await api('/api/gifts');
+    renderGiftsDatalist();
+  } catch (err) { /* noop */ }
+}
+
+// Autocompleta las monedas mínimas con el costo real del regalo elegido
+function maybeAutofillMinCoins(profileId, eventId, giftName) {
+  const gift = giftsCatalog.find(g => g.name.toLowerCase() === giftName.toLowerCase());
+  if (gift) saveEvent(profileId, eventId, { minCoins: gift.diamondCost || 1 }, true);
+}
+
 (async function init() {
   await loadProfiles();
   const status = await api('/api/status');
   setOnAir(status);
+  await loadGifts();
   connectWs();
 })();
