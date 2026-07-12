@@ -28,11 +28,11 @@ Esto abre la ventana de la app y levanta un servidor local en `http://localhost:
 
 ## 3. Conectar tu cuenta
 
-Primero necesitás una clave gratuita de **Euler Stream** (el servicio que "firma" la conexión con TikTok — sin esto vas a ver un error de "Business plan" al conectar):
+Primero necesitás una clave gratuita de **TikTool** (el servicio que maneja la conexión con TikTok):
 
 1. En la app, tocá el ⚙️ que está al lado del botón "Conectar".
-2. Andá a [eulerstream.com](https://www.eulerstream.com), creá una cuenta gratis.
-3. En su dashboard, generá una API Key y copiala.
+2. Andá a [tik.tools](https://tik.tools/login), creá una cuenta gratis (no pide tarjeta).
+3. En su dashboard te genera una API Key automáticamente — copiala.
 4. Volvé a FiskLive, pegala en el campo y tocá **Guardar**. Queda guardada en tu compu, no hace falta repetir esto cada vez.
 
 Ahora sí, para conectar:
@@ -41,7 +41,7 @@ Ahora sí, para conectar:
 2. Tenés que estar **en vivo en TikTok** en ese momento; si no, la conexión va a fallar.
 3. Cuando conecta, el indicador de arriba se pone verde y dice "EN VIVO".
 
-> Nota: esto usa una conexión no oficial (la misma que usa TikFinity y herramientas similares) para leer los eventos públicos de tu propio live. No hace falta ninguna contraseña de TikTok ni token de esa cuenta — solo la clave gratuita de Euler Stream, que es del servicio de firmado, no de tu cuenta de TikTok.
+> Nota: esto usa un servicio externo (TikTool) para leer los eventos públicos de tu propio live. No hace falta ninguna contraseña de TikTok ni token de esa cuenta — solo la clave gratuita de TikTool, que es del servicio de conexión, no de tu cuenta de TikTok. El plan gratis de TikTool no da el catálogo completo de regalos por adelantado, así que el selector de regalos (ver sección 4-bis) arranca con una lista básica y se va completando sola con los regalos reales a medida que la gente te los manda.
 
 ## 4. Perfiles de acción
 
@@ -61,7 +61,7 @@ Además de la alerta genérica de regalos, tenés una pestaña **"Acciones y Eve
 Para el regalo específico de un evento, tocás el botón y se abre una ventana con una grilla de regalos (imagen, nombre, costo en monedas) y un buscador arriba:
 
 - **Antes de conectarte por primera vez**: ves una lista básica precargada de ~35 regalos comunes de TikTok (Rose, GG, Finger Heart, Perfume, etc.) con costos aproximados y sin imágenes, para que puedas armar tus eventos de entrada. La ventana te avisa con un cartel amarillo que estás viendo esta lista básica.
-- **Después de conectarte una vez** en un vivo: se reemplaza por el catálogo real y completo de tu cuenta, con imágenes y costos exactos. Ese catálogo **queda guardado en disco**, así que no se pierde aunque cierres la app — no hace falta reconectar cada vez que la abrís, solo la primera vez.
+- **A medida que vas en vivo**: cada vez que llega un regalo real que todavía no estaba en la lista, se agrega solo con su nombre y costo exacto. Así el catálogo se va completando con datos reales de a poco, sin depender de ningún plan pago. Ese catálogo **queda guardado en disco**, así que no se pierde aunque cierres la app.
 
 Estas acciones se muestran en el mismo overlay de Alertas (`/overlay/alert.html`), así que no hace falta agregar una fuente nueva en OBS para verlas.
 

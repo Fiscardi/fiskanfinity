@@ -3,17 +3,7 @@ const fs = require('fs');
 const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
-// tiktok-live-connector/legacy es un módulo ESM: no se puede cargar con
-// require() normal, hace falta un import() dinámico (funciona igual desde
-// código CommonJS como este).
-let WebcastPushConnection = null;
-async function getWebcastPushConnection() {
-  if (!WebcastPushConnection) {
-    const mod = await import('tiktok-live-connector/legacy');
-    WebcastPushConnection = mod.WebcastPushConnection;
-  }
-  return WebcastPushConnection;
-}
+const { TikTokLive } = require('@tiktool/live');
 const { ProfileStore, MAX_PROFILES } = require('./profileStore');
 const { AppConfig } = require('./appConfig');
 const DEFAULT_GIFTS = require('./defaultGifts');
@@ -55,20 +45,23 @@ function createServer({ userDataDir, port = 8420 }) {
     try { fs.writeFileSync(giftsCacheFile, JSON.stringify(list, null, 2), 'utf-8'); } catch (err) { /* noop */ }
   }
 
-  const rankingTotals = new Map(); // uniqueId -> { user, diamonds }
-
-  function normalizeGifts(rawList) {
-    if (!Array.isArray(rawList)) return [];
-    return rawList
-      .map(g => ({
-        id: g.id,
-        name: g.name,
-        diamondCost: g.diamond_count ?? g.diamondCount ?? 0,
-        icon: (g.image && (g.image.url_list?.[0] || g.image.urlList?.[0])) || g.icon || ''
-      }))
-      .filter(g => g.name)
-      .sort((a, b) => a.diamondCost - b.diamondCost);
+  // TikTool (plan gratis) no da el catálogo completo de regalos por API,
+  // así que lo vamos armando con los regalos reales que van llegando en vivo.
+  function learnGiftFromEvent(giftId, giftName, diamondCost) {
+    if (!giftName) return;
+    const idx = availableGifts.findIndex(g => g.name.toLowerCase() === giftName.toLowerCase());
+    if (idx === -1) {
+      // Si todavía estábamos mostrando la lista básica, arrancamos una real de cero
+      if (giftsSource === 'default') availableGifts = [];
+      availableGifts.push({ id: giftId, name: giftName, diamondCost, icon: '' });
+      availableGifts.sort((a, b) => a.diamondCost - b.diamondCost);
+      giftsSource = 'account';
+      saveGiftsCache(availableGifts);
+      broadcast('gifts', { source: giftsSource, gifts: availableGifts });
+    }
   }
+
+  const rankingTotals = new Map(); // uniqueId -> { user, diamonds }
 
   function broadcast(type, payload) {
     const msg = JSON.stringify({ type, payload });
@@ -144,42 +137,54 @@ function createServer({ userDataDir, port = 8420 }) {
       tiktokConnection = null;
     }
     currentUsername = username;
-    const WebcastPushConnection = await getWebcastPushConnection();
-    const signApiKey = config.get('signApiKey');
-    tiktokConnection = new WebcastPushConnection(username, {
-      processInitialData: false,
-      enableExtendedGiftInfo: true,
-      ...(signApiKey ? { signApiKey } : {})
-    });
+
+    const apiKey = config.get('apiKey');
+    if (!apiKey) {
+      connectionState = {
+        connected: false, username, roomId: null,
+        error: 'Falta configurar tu clave gratuita de conexión (TikTool). Tocá el ⚙️ de arriba y pegala ahí.'
+      };
+      broadcastStatus();
+      return connectionState;
+    }
+
+    tiktokConnection = new TikTokLive({ uniqueId: username, apiKey });
 
     if (store.getActive().overlays.ranking.resetOnConnect) resetRanking();
 
-    tiktokConnection.on('connected', state => {
-      connectionState = { connected: true, username, roomId: state.roomId, error: null };
+    tiktokConnection.on('connected', () => {
+      connectionState = { connected: true, username, roomId: tiktokConnection.roomId || null, error: null };
       broadcastStatus();
     });
 
-    tiktokConnection.on('disconnected', () => {
-      connectionState = { connected: false, username, roomId: null, error: 'Desconectado' };
+    tiktokConnection.on('roomInfo', info => {
+      connectionState.roomId = info.roomId;
       broadcastStatus();
     });
 
-    tiktokConnection.on('streamEnd', () => {
-      connectionState = { connected: false, username, roomId: null, error: 'El vivo terminó' };
+    tiktokConnection.on('disconnected', (code, reason) => {
+      connectionState = { connected: false, username, roomId: null, error: reason || 'Desconectado' };
       broadcastStatus();
     });
 
-    tiktokConnection.on('gift', data => {
+    tiktokConnection.on('error', err => {
+      console.error('Error de conexión con TikTok:', err.message || err);
+    });
+
+    tiktokConnection.on('gift', event => {
       const profile = store.getActive();
       const cfg = profile.overlays.alert;
-      // En una racha de regalos tipo1, solo procesamos cuando repeatEnd:true
-      if (data.giftType === 1 && !data.repeatEnd) return;
+      // Mientras dura una racha de regalos, solo procesamos cuando termina (repeatEnd)
+      if (!event.repeatEnd) return;
 
-      const diamonds = (data.diamondCount || 0) * (data.repeatCount || 1);
-      const displayName = data.nickname || data.uniqueId || 'Alguien';
+      const diamonds = (event.diamondCount || 0) * (event.repeatCount || 1);
+      const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
+      const giftName = event.giftName || 'un regalo';
+
+      learnGiftFromEvent(event.giftId, event.giftName, event.diamondCount || 0);
 
       // Ranking
-      const key = data.uniqueId || displayName;
+      const key = event.user?.uniqueId || displayName;
       const prev = rankingTotals.get(key) || { user: displayName, diamonds: 0 };
       prev.diamonds += diamonds;
       prev.user = displayName;
@@ -197,52 +202,53 @@ function createServer({ userDataDir, port = 8420 }) {
         broadcast('alert', {
           kind: 'gift',
           user: displayName,
-          gift: data.giftName || 'un regalo',
-          count: data.repeatCount || 1,
+          gift: giftName,
+          count: event.repeatCount || 1,
           diamonds,
           text: cfg.giftText
             .replace('{user}', displayName)
-            .replace('{gift}', data.giftName || 'un regalo')
-            .replace('{count}', data.repeatCount || 1)
+            .replace('{gift}', giftName)
+            .replace('{count}', event.repeatCount || 1)
         });
       }
 
-      checkEvents('gift', { user: displayName, gift: data.giftName || 'un regalo', count: data.repeatCount || 1, diamonds });
+      checkEvents('gift', { user: displayName, gift: giftName, count: event.repeatCount || 1, diamonds });
     });
 
-    tiktokConnection.on('follow', data => {
+    tiktokConnection.on('social', event => {
+      if (event.action !== 'follow') return; // 'share' no tiene overlay propio por ahora
       const profile = store.getActive();
       const cfg = profile.overlays.alert;
-      if (!cfg.enabled || !cfg.showFollows) return;
-      const displayName = data.nickname || data.uniqueId || 'Alguien';
-      broadcast('alert', {
-        kind: 'follow',
-        user: displayName,
-        text: cfg.followText.replace('{user}', displayName)
-      });
+      const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
+      if (cfg.enabled && cfg.showFollows) {
+        broadcast('alert', {
+          kind: 'follow',
+          user: displayName,
+          text: cfg.followText.replace('{user}', displayName)
+        });
+      }
       checkEvents('follow', { user: displayName });
     });
 
-    tiktokConnection.on('subscribe', data => {
+    tiktokConnection.on('subscribe', event => {
       const profile = store.getActive();
       const cfg = profile.overlays.alert;
-      if (!cfg.enabled || !cfg.showSubs) return;
-      const displayName = data.nickname || data.uniqueId || 'Alguien';
-      broadcast('alert', {
-        kind: 'sub',
-        user: displayName,
-        text: cfg.subText.replace('{user}', displayName)
-      });
+      const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
+      if (cfg.enabled && cfg.showSubs) {
+        broadcast('alert', {
+          kind: 'sub',
+          user: displayName,
+          text: cfg.subText.replace('{user}', displayName)
+        });
+      }
       checkEvents('subscribe', { user: displayName });
     });
 
-    let likeAccum = 0;
     let lastMilestoneSent = 0;
-    tiktokConnection.on('like', data => {
+    tiktokConnection.on('like', event => {
       const profile = store.getActive();
-      likeAccum += data.likeCount || 1;
-      const total = data.totalLikeCount || likeAccum;
-      const delta = data.likeCount || 1;
+      const total = event.totalLikes || 0;
+      const delta = event.likeCount || 1;
       broadcast('likes', { total, delta });
       checkEvents('like', { total, delta });
 
@@ -259,29 +265,18 @@ function createServer({ userDataDir, port = 8420 }) {
       }
     });
 
-    tiktokConnection.on('roomUser', data => {
-      broadcast('viewers', { count: data.viewerCount || 0 });
+    tiktokConnection.on('roomUserSeq', event => {
+      broadcast('viewers', { count: event.viewerCount || 0 });
     });
 
     connectionState = { connected: false, username, roomId: null, error: null, connecting: true };
     broadcastStatus();
 
     try {
-      const state = await tiktokConnection.connect();
-      connectionState = { connected: true, username, roomId: state.roomId, error: null };
-      const fetched = normalizeGifts(tiktokConnection.availableGifts || state.availableGifts);
-      if (fetched.length > 0) {
-        availableGifts = fetched;
-        giftsSource = 'account';
-        saveGiftsCache(availableGifts);
-        broadcast('gifts', { source: giftsSource, gifts: availableGifts });
-      }
+      await tiktokConnection.connect();
+      connectionState = { connected: true, username, roomId: tiktokConnection.roomId || null, error: null };
     } catch (err) {
-      let message = err.message || String(err);
-      if (/Business plan|eulerstream|signature/i.test(message) && !config.get('signApiKey')) {
-        message = 'Falta configurar tu clave gratuita de conexión (Euler Stream). Tocá el ⚙️ de arriba y pegala ahí.';
-      }
-      connectionState = { connected: false, username, roomId: null, error: message };
+      connectionState = { connected: false, username, roomId: null, error: err.message || String(err) };
     }
     broadcastStatus();
     return connectionState;
@@ -299,10 +294,10 @@ function createServer({ userDataDir, port = 8420 }) {
   // ---- API REST ----
   app.get('/api/status', (req, res) => res.json(connectionState));
 
-  app.get('/api/config', (req, res) => res.json({ signApiKey: config.get('signApiKey') || '' }));
+  app.get('/api/config', (req, res) => res.json({ apiKey: config.get('apiKey') || '' }));
 
   app.post('/api/config', (req, res) => {
-    config.set('signApiKey', (req.body.signApiKey || '').trim());
+    config.set('apiKey', (req.body.apiKey || '').trim());
     res.json({ ok: true });
   });
 

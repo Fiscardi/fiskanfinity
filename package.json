@@ -11,8 +11,8 @@
     "dist": "electron-builder"
   },
   "dependencies": {
+    "@tiktool/live": "^2.12.1",
     "express": "^4.19.2",
-    "tiktok-live-connector": "^2.4.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
