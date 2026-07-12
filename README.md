@@ -47,7 +47,12 @@ En la barra izquierda podés:
 Además de la alerta genérica de regalos, tenés una pestaña **"Acciones y Eventos"** arriba del panel para armar reglas más finas, tipo "cuando llega tal regalo específico, pasa tal otra cosa":
 
 - **Acciones**: la librería de "qué pasa". Cada acción tiene un texto (podés usar `{user}` para que se reemplace por el nombre de quien disparó el evento), un color, una duración, y opcionalmente una URL de sonido `.mp3` que se reproduce en el overlay de alertas.
-- **Eventos**: la tabla de "qué lo dispara". Cada evento define un trigger (un regalo específico por nombre + monedas mínimas, un umbral de likes, un follow, o una suscripción) y qué Acción de la librería ejecuta. Podés activar/desactivar cada evento con el switch, y tocar **Probar** para testearlo sin estar en vivo. El campo de nombre de regalo se autocompleta con el catálogo real de tu cuenta apenas te conectás una vez (dura mientras la app esté abierta), y al elegir uno de la lista te completa solo las monedas mínimas con su costo real.
+- **Eventos**: la tabla de "qué lo dispara". Cada evento define un trigger (un regalo específico + monedas mínimas, un umbral de likes, un follow, o una suscripción) y qué Acción de la librería ejecuta. Podés activar/desactivar cada evento con el switch, y tocar **Probar** para testearlo sin estar en vivo.
+
+Para el regalo específico de un evento, tocás el botón y se abre una ventana con una grilla de regalos (imagen, nombre, costo en monedas) y un buscador arriba:
+
+- **Antes de conectarte por primera vez**: ves una lista básica precargada de ~35 regalos comunes de TikTok (Rose, GG, Finger Heart, Perfume, etc.) con costos aproximados y sin imágenes, para que puedas armar tus eventos de entrada. La ventana te avisa con un cartel amarillo que estás viendo esta lista básica.
+- **Después de conectarte una vez** en un vivo: se reemplaza por el catálogo real y completo de tu cuenta, con imágenes y costos exactos. Ese catálogo **queda guardado en disco**, así que no se pierde aunque cierres la app — no hace falta reconectar cada vez que la abrís, solo la primera vez.
 
 Estas acciones se muestran en el mismo overlay de Alertas (`/overlay/alert.html`), así que no hace falta agregar una fuente nueva en OBS para verlas.
 

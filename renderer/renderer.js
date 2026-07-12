@@ -370,7 +370,8 @@ function connectWs() {
       if (p) { p.overlays.goal = msg.payload; renderCards(); }
     }
     if (msg.type === 'gifts') {
-      giftsCatalog = msg.payload;
+      giftsCatalog = msg.payload.gifts;
+      giftsSource = msg.payload.source;
     }
     logIncoming(msg);
   };
@@ -589,6 +590,7 @@ document.getElementById('addEventBtn').addEventListener('click', async () => {
 
 // ---------- Catálogo de regalos reales + selector emergente ----------
 let giftsCatalog = [];
+let giftsSource = 'default';
 let giftModalTarget = null; // { profileId, eventId }
 
 function giftThumbHtml(giftName) {
@@ -601,7 +603,9 @@ function giftThumbHtml(giftName) {
 
 async function loadGifts() {
   try {
-    giftsCatalog = await api('/api/gifts');
+    const data = await api('/api/gifts');
+    giftsCatalog = data.gifts;
+    giftsSource = data.source;
   } catch (err) { /* noop */ }
 }
 
@@ -620,6 +624,14 @@ function closeGiftModal() {
 
 function renderGiftGrid(filterText) {
   const grid = document.getElementById('giftGrid');
+  const banner = document.getElementById('giftSourceBanner');
+  if (giftsSource === 'default') {
+    banner.style.display = 'block';
+    banner.textContent = '⚠️ Todavía no te conectaste nunca: esta es una lista básica aproximada, sin imágenes. Conectate una vez en un vivo para traer el catálogo real de tu cuenta (con fotos y costos exactos).';
+  } else {
+    banner.style.display = 'none';
+  }
+
   const filtered = giftsCatalog.filter(g => g.name.toLowerCase().includes(filterText.toLowerCase()));
 
   const anyTile = !filterText ? `
@@ -629,9 +641,7 @@ function renderGiftGrid(filterText) {
       <span class="gt-coins">sin filtro</span>
     </button>` : '';
 
-  if (filtered.length === 0 && giftsCatalog.length === 0) {
-    grid.innerHTML = anyTile + '<p class="av-hint">Todavía no hay catálogo cargado — conectate a tu cuenta una vez y volvé a abrir esto.</p>';
-  } else if (filtered.length === 0) {
+  if (filtered.length === 0) {
     grid.innerHTML = anyTile + '<p class="av-hint">No hay regalos que coincidan con la búsqueda.</p>';
   } else {
     grid.innerHTML = anyTile + filtered.map(g => `

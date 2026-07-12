@@ -547,6 +547,17 @@ button.danger { color: #ff8fae; }
 }
 .modal-search:focus { outline: 2px solid var(--pink); outline-offset: 1px; }
 
+.gift-source-banner {
+  background: rgba(255, 182, 72, 0.12);
+  border: 1px solid var(--amber);
+  color: var(--amber);
+  font-size: 12px;
+  line-height: 1.4;
+  padding: 8px 10px;
+  border-radius: 8px;
+  margin: 0;
+}
+
 .gift-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(86px, 1fr));

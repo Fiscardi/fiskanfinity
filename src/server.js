@@ -1,4 +1,5 @@
 const path = require('path');
+const fs = require('fs');
 const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
@@ -14,12 +15,14 @@ async function getWebcastPushConnection() {
   return WebcastPushConnection;
 }
 const { ProfileStore, MAX_PROFILES } = require('./profileStore');
+const DEFAULT_GIFTS = require('./defaultGifts');
 
 function createServer({ userDataDir, port = 8420 }) {
   const app = express();
   app.use(express.json());
 
   const store = new ProfileStore(userDataDir);
+  const giftsCacheFile = path.join(userDataDir, 'gifts-cache.json');
 
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws' });
@@ -27,7 +30,29 @@ function createServer({ userDataDir, port = 8420 }) {
   let tiktokConnection = null;
   let currentUsername = null;
   let connectionState = { connected: false, username: null, roomId: null, error: null };
-  let availableGifts = []; // catálogo de regalos de la cuenta conectada, para el selector de eventos
+  // Catálogo de regalos para el selector de eventos: arranca con el que haya
+  // quedado guardado de una conexión anterior, o si nunca conectaste, con el
+  // básico precargado (aproximado, sin imágenes).
+  const cachedGifts = loadCachedGifts();
+  let availableGifts = cachedGifts.list;
+  let giftsSource = cachedGifts.source;
+
+  function loadCachedGifts() {
+    try {
+      if (fs.existsSync(giftsCacheFile)) {
+        const cached = JSON.parse(fs.readFileSync(giftsCacheFile, 'utf-8'));
+        if (Array.isArray(cached) && cached.length > 0) {
+          return { list: cached, source: 'account' };
+        }
+      }
+    } catch (err) { /* si falla, usamos el básico */ }
+    return { list: DEFAULT_GIFTS, source: 'default' };
+  }
+
+  function saveGiftsCache(list) {
+    try { fs.writeFileSync(giftsCacheFile, JSON.stringify(list, null, 2), 'utf-8'); } catch (err) { /* noop */ }
+  }
+
   const rankingTotals = new Map(); // uniqueId -> { user, diamonds }
 
   function normalizeGifts(rawList) {
@@ -63,7 +88,7 @@ function createServer({ userDataDir, port = 8420 }) {
     ws.send(JSON.stringify({ type: 'status', payload: connectionState }));
     ws.send(JSON.stringify({ type: 'profile', payload: store.getActive() }));
     ws.send(JSON.stringify({ type: 'ranking', payload: getRankingArray() }));
-    ws.send(JSON.stringify({ type: 'gifts', payload: availableGifts }));
+    ws.send(JSON.stringify({ type: 'gifts', payload: { source: giftsSource, gifts: availableGifts } }));
   });
 
   function getRankingArray() {
@@ -240,8 +265,13 @@ function createServer({ userDataDir, port = 8420 }) {
     try {
       const state = await tiktokConnection.connect();
       connectionState = { connected: true, username, roomId: state.roomId, error: null };
-      availableGifts = normalizeGifts(tiktokConnection.availableGifts || state.availableGifts);
-      broadcast('gifts', availableGifts);
+      const fetched = normalizeGifts(tiktokConnection.availableGifts || state.availableGifts);
+      if (fetched.length > 0) {
+        availableGifts = fetched;
+        giftsSource = 'account';
+        saveGiftsCache(availableGifts);
+        broadcast('gifts', { source: giftsSource, gifts: availableGifts });
+      }
     } catch (err) {
       connectionState = { connected: false, username, roomId: null, error: err.message || String(err) };
     }
@@ -261,7 +291,7 @@ function createServer({ userDataDir, port = 8420 }) {
   // ---- API REST ----
   app.get('/api/status', (req, res) => res.json(connectionState));
 
-  app.get('/api/gifts', (req, res) => res.json(availableGifts));
+  app.get('/api/gifts', (req, res) => res.json({ source: giftsSource, gifts: availableGifts }));
 
   app.post('/api/connect', async (req, res) => {
     const { username } = req.body;
