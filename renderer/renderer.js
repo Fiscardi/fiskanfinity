@@ -181,15 +181,14 @@ function eventsCard() {
       <span class="led on"></span>
       <div class="card-title">Eventos y pruebas</div>
     </div>
-    <p class="hint">Simulá eventos para chequear que las alertas y overlays reaccionen bien, sin necesidad de estar en vivo.</p>
+    <p class="hint">Simulá eventos para chequear que las alertas, la meta, el ranking y tus Acciones/Eventos configurados reaccionen bien, sin necesidad de estar en vivo.</p>
 
     <div class="test-grid">
       <div class="test-form">
         <div class="field-row"><span>Usuario</span><input type="text" id="testUser" value="Usuario_Prueba" /></div>
         <div class="field-row"><span>Regalo</span><input type="text" id="testGift" value="Rosa" /></div>
-        <div class="field-row"><span>Cantidad</span><input type="number" id="testCount" value="5" min="1" /></div>
-        <div class="field-row"><span>Diamantes</span><input type="number" id="testDiamonds" value="5" min="1" /></div>
-        <div class="field-row"><span>Sumar a meta y ranking</span><button class="switch small" id="testAffect"></button></div>
+        <div class="field-row"><span>Cantidad (combo)</span><input type="number" id="testCount" value="1" min="1" /></div>
+        <div class="field-row"><span>Diamantes (por unidad)</span><input type="number" id="testDiamonds" value="5" min="1" /></div>
         <button class="primary" id="sendTestGift" style="width:100%; margin-top:4px;">🎁 Enviar regalo de prueba</button>
       </div>
       <div class="test-quick">
@@ -233,9 +232,6 @@ function renderLog() {
 }
 
 function wireEventsCard() {
-  const affectBtn = document.getElementById('testAffect');
-  if (affectBtn) affectBtn.addEventListener('click', () => affectBtn.classList.toggle('on'));
-
   const sendGiftBtn = document.getElementById('sendTestGift');
   if (sendGiftBtn) {
     sendGiftBtn.addEventListener('click', async () => {
@@ -243,8 +239,7 @@ function wireEventsCard() {
         user: document.getElementById('testUser').value,
         gift: document.getElementById('testGift').value,
         count: document.getElementById('testCount').value,
-        diamonds: document.getElementById('testDiamonds').value,
-        affectGoalAndRanking: document.getElementById('testAffect').classList.contains('on')
+        diamonds: document.getElementById('testDiamonds').value
       };
       await api('/api/test-alert/gift', { method: 'POST', body: JSON.stringify(body) });
     });
@@ -440,7 +435,12 @@ function renderActionsList(profile) {
       </div>
       <div class="field-row"><span>Texto (usá {user})</span><input type="text" value="${escapeHtml(a.text)}" data-a-field="text" /></div>
       <div class="field-row"><span>Sonido (URL .mp3, opcional)</span><input type="text" value="${escapeHtml(a.soundUrl || '')}" data-a-field="soundUrl" placeholder="https://..." /></div>
+      <div class="field-row"><span>Webhook hacia el juego/mod (opcional)</span><input type="text" value="${escapeHtml(a.webhookUrl || '')}" data-a-field="webhookUrl" placeholder="http://localhost:PUERTO/..." /></div>
       <div class="ac-row2">
+        <select data-a-field="webhookMethod" title="Método del webhook" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px;">
+          <option value="POST" ${(a.webhookMethod || 'POST') === 'POST' ? 'selected' : ''}>POST</option>
+          <option value="GET" ${a.webhookMethod === 'GET' ? 'selected' : ''}>GET</option>
+        </select>
         <input type="color" value="${a.accentColor}" data-a-field="accentColor" title="Color" />
         <input type="number" min="1000" step="500" value="${a.duration}" data-a-field="duration" title="Duración (ms)" />
         <button class="small" data-a-test="${a.id}">Probar</button>

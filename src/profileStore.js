@@ -57,7 +57,9 @@ function makeDefaultAction(n) {
     text: '{user} activó "' + 'Acción ' + n + '"',
     accentColor: '#ffb648',
     duration: 5000,
-    soundUrl: ''
+    soundUrl: '',
+    webhookUrl: '',
+    webhookMethod: 'POST'
   };
 }
 
@@ -176,7 +178,9 @@ class ProfileStore {
       text: data.text || action.text,
       accentColor: data.accentColor || action.accentColor,
       duration: data.duration || action.duration,
-      soundUrl: data.soundUrl || ''
+      soundUrl: data.soundUrl || '',
+      webhookUrl: data.webhookUrl || '',
+      webhookMethod: data.webhookMethod || 'POST'
     });
     profile.actions.push(action);
     this.persist();

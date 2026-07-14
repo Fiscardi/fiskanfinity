@@ -110,6 +110,22 @@ function createServer({ userDataDir, port = 8420 }) {
       duration: action.duration,
       soundUrl: action.soundUrl || ''
     });
+
+    // Puente hacia el juego/mod: si la acción tiene un webhook configurado,
+    // le pegamos un pedido HTTP. Del otro lado tiene que haber algo escuchando
+    // (un mod con API local, un script propio, AutoHotkey con un mini-servidor, etc.)
+    // — FiskLive solo manda la señal, no controla el juego directamente.
+    if (action.webhookUrl) {
+      const method = (action.webhookMethod || 'POST').toUpperCase();
+      const opts = { method };
+      if (method !== 'GET') {
+        opts.headers = { 'Content-Type': 'application/json' };
+        opts.body = JSON.stringify({ action: action.name, ...vars });
+      }
+      fetch(action.webhookUrl, opts).catch(err => {
+        console.error(`Webhook de la acción "${action.name}" falló:`, err.message);
+      });
+    }
   }
 
   // Revisa los eventos configurados del perfil activo y dispara los que matcheen
@@ -129,6 +145,100 @@ function createServer({ userDataDir, port = 8420 }) {
         fireAction(profile, ev.actionId, vars);
       }
     });
+  }
+
+  let lastMilestoneSent = 0;
+
+  function handleGiftEvent(event) {
+    const profile = store.getActive();
+    const cfg = profile.overlays.alert;
+    // Mientras dura una racha de regalos, solo procesamos cuando termina (repeatEnd)
+    if (!event.repeatEnd) return;
+
+    const diamonds = (event.diamondCount || 0) * (event.repeatCount || 1);
+    const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
+    const giftName = event.giftName || 'un regalo';
+
+    learnGiftFromEvent(event.giftId, event.giftName, event.diamondCount || 0);
+
+    // Ranking
+    const key = event.user?.uniqueId || displayName;
+    const prev = rankingTotals.get(key) || { user: displayName, diamonds: 0 };
+    prev.diamonds += diamonds;
+    prev.user = displayName;
+    rankingTotals.set(key, prev);
+    if (profile.overlays.ranking.enabled) broadcast('ranking', getRankingArray());
+
+    // Meta
+    if (profile.overlays.goal.enabled) {
+      const updated = store.addToGoal(profile.id, diamonds);
+      broadcast('goal', updated.overlays.goal);
+    }
+
+    // Alerta
+    if (cfg.enabled && diamonds >= (cfg.minDiamonds || 1) && cfg.showGifts) {
+      broadcast('alert', {
+        kind: 'gift',
+        user: displayName,
+        gift: giftName,
+        count: event.repeatCount || 1,
+        diamonds,
+        text: cfg.giftText
+          .replace('{user}', displayName)
+          .replace('{gift}', giftName)
+          .replace('{count}', event.repeatCount || 1)
+      });
+    }
+
+    checkEvents('gift', { user: displayName, gift: giftName, count: event.repeatCount || 1, diamonds });
+  }
+
+  function handleFollowEvent(event) {
+    const profile = store.getActive();
+    const cfg = profile.overlays.alert;
+    const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
+    if (cfg.enabled && cfg.showFollows) {
+      broadcast('alert', {
+        kind: 'follow',
+        user: displayName,
+        text: cfg.followText.replace('{user}', displayName)
+      });
+    }
+    checkEvents('follow', { user: displayName });
+  }
+
+  function handleSubscribeEvent(event) {
+    const profile = store.getActive();
+    const cfg = profile.overlays.alert;
+    const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
+    if (cfg.enabled && cfg.showSubs) {
+      broadcast('alert', {
+        kind: 'sub',
+        user: displayName,
+        text: cfg.subText.replace('{user}', displayName)
+      });
+    }
+    checkEvents('subscribe', { user: displayName });
+  }
+
+  function handleLikeEvent(event) {
+    const profile = store.getActive();
+    const total = event.totalLikes || 0;
+    const delta = event.likeCount || 1;
+    broadcast('likes', { total, delta });
+    checkEvents('like', { total, delta });
+
+    const cfg = profile.overlays.alert;
+    if (cfg.enabled && cfg.showLikeMilestones) {
+      const step = cfg.likeMilestoneStep || 100;
+      if (total - lastMilestoneSent >= step) {
+        lastMilestoneSent = total;
+        broadcast('alert', {
+          kind: 'likeMilestone',
+          text: `¡Llegaron a ${total} likes!`
+        });
+      }
+    }
   }
 
   async function connectToTikTok(username) {
@@ -171,99 +281,16 @@ function createServer({ userDataDir, port = 8420 }) {
       console.error('Error de conexión con TikTok:', err.message || err);
     });
 
-    tiktokConnection.on('gift', event => {
-      const profile = store.getActive();
-      const cfg = profile.overlays.alert;
-      // Mientras dura una racha de regalos, solo procesamos cuando termina (repeatEnd)
-      if (!event.repeatEnd) return;
-
-      const diamonds = (event.diamondCount || 0) * (event.repeatCount || 1);
-      const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
-      const giftName = event.giftName || 'un regalo';
-
-      learnGiftFromEvent(event.giftId, event.giftName, event.diamondCount || 0);
-
-      // Ranking
-      const key = event.user?.uniqueId || displayName;
-      const prev = rankingTotals.get(key) || { user: displayName, diamonds: 0 };
-      prev.diamonds += diamonds;
-      prev.user = displayName;
-      rankingTotals.set(key, prev);
-      if (profile.overlays.ranking.enabled) broadcast('ranking', getRankingArray());
-
-      // Meta
-      if (profile.overlays.goal.enabled) {
-        const updated = store.addToGoal(profile.id, diamonds);
-        broadcast('goal', updated.overlays.goal);
-      }
-
-      // Alerta
-      if (cfg.enabled && diamonds >= (cfg.minDiamonds || 1) && cfg.showGifts) {
-        broadcast('alert', {
-          kind: 'gift',
-          user: displayName,
-          gift: giftName,
-          count: event.repeatCount || 1,
-          diamonds,
-          text: cfg.giftText
-            .replace('{user}', displayName)
-            .replace('{gift}', giftName)
-            .replace('{count}', event.repeatCount || 1)
-        });
-      }
-
-      checkEvents('gift', { user: displayName, gift: giftName, count: event.repeatCount || 1, diamonds });
-    });
+    tiktokConnection.on('gift', handleGiftEvent);
 
     tiktokConnection.on('social', event => {
       if (event.action !== 'follow') return; // 'share' no tiene overlay propio por ahora
-      const profile = store.getActive();
-      const cfg = profile.overlays.alert;
-      const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
-      if (cfg.enabled && cfg.showFollows) {
-        broadcast('alert', {
-          kind: 'follow',
-          user: displayName,
-          text: cfg.followText.replace('{user}', displayName)
-        });
-      }
-      checkEvents('follow', { user: displayName });
+      handleFollowEvent(event);
     });
 
-    tiktokConnection.on('subscribe', event => {
-      const profile = store.getActive();
-      const cfg = profile.overlays.alert;
-      const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
-      if (cfg.enabled && cfg.showSubs) {
-        broadcast('alert', {
-          kind: 'sub',
-          user: displayName,
-          text: cfg.subText.replace('{user}', displayName)
-        });
-      }
-      checkEvents('subscribe', { user: displayName });
-    });
+    tiktokConnection.on('subscribe', handleSubscribeEvent);
 
-    let lastMilestoneSent = 0;
-    tiktokConnection.on('like', event => {
-      const profile = store.getActive();
-      const total = event.totalLikes || 0;
-      const delta = event.likeCount || 1;
-      broadcast('likes', { total, delta });
-      checkEvents('like', { total, delta });
-
-      const cfg = profile.overlays.alert;
-      if (cfg.enabled && cfg.showLikeMilestones) {
-        const step = cfg.likeMilestoneStep || 100;
-        if (total - lastMilestoneSent >= step) {
-          lastMilestoneSent = total;
-          broadcast('alert', {
-            kind: 'likeMilestone',
-            text: `¡Llegaron a ${total} likes!`
-          });
-        }
-      }
-    });
+    tiktokConnection.on('like', handleLikeEvent);
 
     tiktokConnection.on('roomUserSeq', event => {
       broadcast('viewers', { count: event.viewerCount || 0 });
@@ -294,7 +321,7 @@ function createServer({ userDataDir, port = 8420 }) {
   // ---- API REST ----
   app.get('/api/status', (req, res) => res.json(connectionState));
 
-  app.get('/api/config', (req, res) => res.json({ apiKey: config.get('apiKey') || '' }));
+  app.get('/api/config', (req, res) => res.json({ apiKey: config.get('apiKey') || '', lastUsername: config.get('lastUsername') || '' }));
 
   app.post('/api/config', (req, res) => {
     config.set('apiKey', (req.body.apiKey || '').trim());
@@ -413,9 +440,29 @@ function createServer({ userDataDir, port = 8420 }) {
     const profile = store.data.profiles.find(p => p.id === req.params.id);
     if (!profile) return res.status(404).json({ error: 'Perfil no encontrado' });
     const event = profile.events.find(e => e.id === req.params.eventId);
-    if (!event || !event.actionId) return res.status(400).json({ error: 'El evento no tiene una acción asignada' });
-    const sampleVars = { user: 'Usuario_Prueba', gift: event.giftName || 'Rosa', count: 1, diamonds: event.minCoins || 1, total: event.minLikes || 100, delta: 1 };
-    fireAction(profile, event.actionId, sampleVars);
+    if (!event) return res.status(404).json({ error: 'Evento no encontrado' });
+    if (!event.actionId) return res.status(400).json({ error: 'El evento no tiene una acción asignada' });
+
+    const wasActive = profile.id === store.data.activeProfileId;
+    if (!wasActive) return res.status(400).json({ error: 'Solo se puede probar un evento del perfil activo' });
+
+    const syntheticUser = { nickname: 'Usuario_Prueba', uniqueId: 'Usuario_Prueba' };
+    if (event.triggerType === 'gift') {
+      handleGiftEvent({
+        user: syntheticUser,
+        giftId: 'prueba',
+        giftName: event.giftName || 'Rosa',
+        diamondCount: event.minCoins || 1,
+        repeatCount: 1,
+        repeatEnd: true
+      });
+    } else if (event.triggerType === 'like') {
+      handleLikeEvent({ totalLikes: event.minLikes || 100, likeCount: event.minLikes || 100 });
+    } else if (event.triggerType === 'follow') {
+      handleFollowEvent({ user: syntheticUser });
+    } else if (event.triggerType === 'subscribe') {
+      handleSubscribeEvent({ user: syntheticUser });
+    }
     res.json({ ok: true });
   });
 
@@ -423,33 +470,40 @@ function createServer({ userDataDir, port = 8420 }) {
     const kind = req.params.kind;
     const body = req.body || {};
     const user = (body.user && body.user.trim()) || 'Usuario_Prueba';
-    const giftName = (body.gift && body.gift.trim()) || 'Rosa';
-    const count = Number(body.count) > 0 ? Number(body.count) : 5;
-    const diamonds = Number(body.diamonds) > 0 ? Number(body.diamonds) : count;
-    const samples = {
-      gift: { kind: 'gift', user, gift: giftName, count, diamonds, text: `${user} envió ${giftName} x${count}` },
-      follow: { kind: 'follow', user, text: `${user} empezó a seguirte` },
-      sub: { kind: 'sub', user, text: `${user} se suscribió` },
-      likeMilestone: { kind: 'likeMilestone', text: `¡Llegaron a ${body.total || 1000} likes!` }
-    };
-    const alertPayload = samples[kind] || samples.gift;
-    broadcast('alert', alertPayload);
+    const syntheticUser = { nickname: user, uniqueId: user };
 
-    // Si es un regalo de prueba, también podemos simular su efecto en meta y ranking
-    if (kind === 'gift' && body.affectGoalAndRanking) {
-      const profile = store.getActive();
-      if (profile.overlays.goal.enabled) {
-        const updated = store.addToGoal(profile.id, diamonds);
-        broadcast('goal', updated.overlays.goal);
-      }
-      if (profile.overlays.ranking.enabled) {
-        const prev = rankingTotals.get(user) || { user, diamonds: 0 };
-        prev.diamonds += diamonds;
-        rankingTotals.set(user, prev);
-        broadcast('ranking', getRankingArray());
-      }
+    if (kind === 'gift') {
+      const giftName = (body.gift && body.gift.trim()) || 'Rosa';
+      const count = Number(body.count) > 0 ? Number(body.count) : 1;
+      const diamondCount = Number(body.diamonds) > 0 ? Number(body.diamonds) : 1;
+      handleGiftEvent({
+        user: syntheticUser,
+        giftId: 'prueba',
+        giftName,
+        diamondCount,
+        repeatCount: count,
+        repeatEnd: true
+      });
+      return res.json({ ok: true });
     }
-    res.json({ ok: true, sent: alertPayload });
+
+    if (kind === 'follow') {
+      handleFollowEvent({ user: syntheticUser });
+      return res.json({ ok: true });
+    }
+
+    if (kind === 'sub') {
+      handleSubscribeEvent({ user: syntheticUser });
+      return res.json({ ok: true });
+    }
+
+    if (kind === 'likeMilestone') {
+      const total = Number(body.total) > 0 ? Number(body.total) : (lastMilestoneSent + 100);
+      handleLikeEvent({ totalLikes: total, likeCount: total - lastMilestoneSent });
+      return res.json({ ok: true });
+    }
+
+    res.status(400).json({ error: 'Tipo de prueba desconocido' });
   });
 
   app.post('/api/test-counter/:kind', (req, res) => {
@@ -457,7 +511,7 @@ function createServer({ userDataDir, port = 8420 }) {
     const body = req.body || {};
     if (kind === 'likes') {
       const total = Number(body.total) || Math.floor(Math.random() * 5000) + 100;
-      broadcast('likes', { total, delta: Number(body.delta) || 10 });
+      handleLikeEvent({ totalLikes: total, likeCount: Number(body.delta) || 10 });
     } else if (kind === 'viewers') {
       const count = Number(body.count) || Math.floor(Math.random() * 200) + 5;
       broadcast('viewers', { count });
