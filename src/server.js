@@ -22,6 +22,8 @@ function createServer({ userDataDir, port = 8420 }) {
   let tiktokConnection = null;
   let currentUsername = null;
   let connectionState = { connected: false, username: null, roomId: null, error: null };
+  let lastEventAt = 0;
+  let heartbeatCheckInterval = null;
   // Catálogo de regalos para el selector de eventos: arranca con el que haya
   // quedado guardado de una conexión anterior, o si nunca conectaste, con el
   // básico precargado (aproximado, sin imágenes).
@@ -258,11 +260,30 @@ function createServer({ userDataDir, port = 8420 }) {
       return connectionState;
     }
 
-    tiktokConnection = new TikTokLive({ uniqueId: username, apiKey });
+    tiktokConnection = new TikTokLive({
+      uniqueId: username,
+      apiKey,
+      autoReconnect: true,
+      maxReconnectAttempts: 5
+    });
 
     if (store.getActive().overlays.ranking.resetOnConnect) resetRanking();
 
+    // "Latido": si estando conectados pasa mucho tiempo sin ningún evento
+    // real (regalos, likes, viewers, etc.), lo más probable es que el vivo
+    // haya terminado y la librería no nos avisó a tiempo. Lo detectamos solos.
+    lastEventAt = Date.now();
+    if (heartbeatCheckInterval) clearInterval(heartbeatCheckInterval);
+    heartbeatCheckInterval = setInterval(() => {
+      if (connectionState.connected && Date.now() - lastEventAt > 90000) {
+        connectionState = { connected: false, username, roomId: null, error: 'El vivo terminó (sin actividad)' };
+        broadcastStatus();
+        try { tiktokConnection.disconnect(); } catch (e) { /* noop */ }
+      }
+    }, 15000);
+
     tiktokConnection.on('connected', () => {
+      lastEventAt = Date.now();
       connectionState = { connected: true, username, roomId: tiktokConnection.roomId || null, error: null };
       broadcastStatus();
     });
@@ -277,22 +298,34 @@ function createServer({ userDataDir, port = 8420 }) {
       broadcastStatus();
     });
 
+    // action 3 y 4 son los códigos que usa TikTok para avisar que el live
+    // terminó (los mismos que usaba la librería vieja).
+    tiktokConnection.on('control', event => {
+      if (event.action === 3 || event.action === 4) {
+        connectionState = { connected: false, username, roomId: null, error: 'El vivo terminó' };
+        broadcastStatus();
+        try { tiktokConnection.disconnect(); } catch (e) { /* noop */ }
+      }
+    });
+
     tiktokConnection.on('error', err => {
       console.error('Error de conexión con TikTok:', err.message || err);
     });
 
-    tiktokConnection.on('gift', handleGiftEvent);
+    tiktokConnection.on('gift', event => { lastEventAt = Date.now(); handleGiftEvent(event); });
 
     tiktokConnection.on('social', event => {
+      lastEventAt = Date.now();
       if (event.action !== 'follow') return; // 'share' no tiene overlay propio por ahora
       handleFollowEvent(event);
     });
 
-    tiktokConnection.on('subscribe', handleSubscribeEvent);
+    tiktokConnection.on('subscribe', event => { lastEventAt = Date.now(); handleSubscribeEvent(event); });
 
-    tiktokConnection.on('like', handleLikeEvent);
+    tiktokConnection.on('like', event => { lastEventAt = Date.now(); handleLikeEvent(event); });
 
     tiktokConnection.on('roomUserSeq', event => {
+      lastEventAt = Date.now();
       broadcast('viewers', { count: event.viewerCount || 0 });
     });
 
@@ -310,6 +343,10 @@ function createServer({ userDataDir, port = 8420 }) {
   }
 
   function disconnectFromTikTok() {
+    if (heartbeatCheckInterval) {
+      clearInterval(heartbeatCheckInterval);
+      heartbeatCheckInterval = null;
+    }
     if (tiktokConnection) {
       try { tiktokConnection.disconnect(); } catch (e) { /* noop */ }
       tiktokConnection = null;
