@@ -54,6 +54,28 @@ let duration = 6000;
 
 const icons = { gift: '🎁', follow: '➕', sub: '⭐', likeMilestone: '❤️', custom: '⚡' };
 
+// Mismo respaldo que en el panel: TikTool (plan gratis) no manda imagen del
+// regalo, así que usamos un emoji representativo por nombre si lo reconocemos.
+const GIFT_EMOJI = {
+  rose: '🌹', rosa: '🌹', gg: '🎮', heart: '❤️', 'finger heart': '🫰',
+  tiktok: '🎵', 'ice cream cone': '🍦', 'thumbs up': '👍', coffee: '☕',
+  'lightning bolt': '⚡', pandas: '🐼', mic: '🎤', 'drama queen': '🎭',
+  'tiny dino': '🦖', 'hand heart': '💗', 'dog bone': '🦴', raccoon: '🦝',
+  perfume: '🧴', 'baby fox': '🦊', capybara: '🐹', doughnut: '🍩',
+  'i love you': '💌', origami: '🕊️', cap: '🧢', 'paper crane': '🪽',
+  confetti: '🎊', 'bear love': '🧸', butterfly: '🦋', corgi: '🐕',
+  galaxy: '🌌', fireworks: '🎆', 'sports car': '🏎️', 'sam the whale': '🐋',
+  lion: '🦁', 'tiktok universe': '🌠'
+};
+
+function iconFor(alert) {
+  if (alert.icon) return `<img src="${alert.icon}" alt="" style="width:40px;height:40px;object-fit:contain;" />`;
+  if (alert.kind === 'gift' && alert.gift) {
+    return GIFT_EMOJI[alert.gift.toLowerCase()] || icons.gift;
+  }
+  return icons[alert.kind] || '✨';
+}
+
 function connectWs() {
   const ws = new WebSocket('ws://localhost:8420/ws');
   ws.onmessage = ev => {
@@ -87,7 +109,7 @@ function processQueue() {
   card.className = 'card';
   card.style.setProperty('--accent', cardAccent);
   card.innerHTML = `
-    <div class="icon">${icons[alert.kind] || '✨'}</div>
+    <div class="icon">${iconFor(alert)}</div>
     <div class="text">
       ${alert.user ? `<div class="user">${escapeHtml(alert.user)}</div>` : ''}
       <div class="desc">${escapeHtml(alert.text || '')}</div>

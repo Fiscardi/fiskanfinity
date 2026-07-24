@@ -593,12 +593,31 @@ let giftsCatalog = [];
 let giftsSource = 'default';
 let giftModalTarget = null; // { profileId, eventId }
 
+// TikTool (plan gratis) no manda imágenes de regalos, así que usamos un
+// emoji representativo por nombre como respaldo visual, mejor que un
+// ícono genérico siempre igual. Si no reconocemos el nombre, cae en 🎁.
+const GIFT_EMOJI = {
+  rose: '🌹', rosa: '🌹', gg: '🎮', heart: '❤️', 'finger heart': '🫰',
+  tiktok: '🎵', 'ice cream cone': '🍦', 'thumbs up': '👍', coffee: '☕',
+  'lightning bolt': '⚡', pandas: '🐼', mic: '🎤', 'drama queen': '🎭',
+  'tiny dino': '🦖', 'hand heart': '💗', 'dog bone': '🦴', raccoon: '🦝',
+  perfume: '🧴', 'baby fox': '🦊', capybara: '🐹', doughnut: '🍩',
+  'i love you': '💌', origami: '🕊️', cap: '🧢', 'paper crane': '🪽',
+  confetti: '🎊', 'bear love': '🧸', butterfly: '🦋', corgi: '🐕',
+  galaxy: '🌌', fireworks: '🎆', 'sports car': '🏎️', 'sam the whale': '🐋',
+  lion: '🦁', 'tiktok universe': '🌠'
+};
+
+function guessGiftEmoji(giftName) {
+  if (!giftName) return '🎁';
+  return GIFT_EMOJI[giftName.toLowerCase()] || '🎁';
+}
+
 function giftThumbHtml(giftName) {
   if (!giftName) return '<span class="gift-thumb gift-thumb-empty">🎁</span>';
   const g = giftsCatalog.find(x => x.name.toLowerCase() === giftName.toLowerCase());
-  return g && g.icon
-    ? `<img class="gift-thumb" src="${escapeHtml(g.icon)}" alt="" />`
-    : '<span class="gift-thumb gift-thumb-empty">🎁</span>';
+  if (g && g.icon) return `<img class="gift-thumb" src="${escapeHtml(g.icon)}" alt="" />`;
+  return `<span class="gift-thumb gift-thumb-empty">${guessGiftEmoji(giftName)}</span>`;
 }
 
 async function loadGifts() {
@@ -646,7 +665,7 @@ function renderGiftGrid(filterText) {
   } else {
     grid.innerHTML = anyTile + filtered.map(g => `
       <button class="gift-tile" data-gift-name="${escapeHtml(g.name)}" data-gift-coins="${g.diamondCost}">
-        ${g.icon ? `<img src="${escapeHtml(g.icon)}" alt="" />` : '<div class="gift-tile-noicon">🎁</div>'}
+        ${g.icon ? `<img src="${escapeHtml(g.icon)}" alt="" />` : `<div class="gift-tile-noicon">${guessGiftEmoji(g.name)}</div>`}
         <span class="gt-name">${escapeHtml(g.name)}</span>
         <span class="gt-coins">${g.diamondCost} 💎</span>
       </button>`).join('');

@@ -15,6 +15,30 @@ function createServer({ userDataDir, port = 8420 }) {
   const store = new ProfileStore(userDataDir);
   const config = new AppConfig(userDataDir);
   const giftsCacheFile = path.join(userDataDir, 'gifts-cache.json');
+  const giftImagesDir = path.join(__dirname, '..', 'assets', 'gifts');
+
+  // Busca, por nombre exacto (sin mayúsculas/minúsculas), si el usuario puso
+  // una imagen local para ese regalo en assets/gifts. Se relee cada vez
+  // porque la carpeta es chica y así el usuario puede agregar imágenes
+  // nuevas sin tener que reiniciar la app.
+  function findLocalGiftImage(giftName) {
+    if (!giftName) return '';
+    try {
+      const files = fs.readdirSync(giftImagesDir);
+      const target = giftName.trim().toLowerCase();
+      const match = files.find(f => {
+        const base = f.replace(/\.(png|jpg|jpeg|webp)$/i, '');
+        return base.trim().toLowerCase() === target;
+      });
+      return match ? `/gift-images/${encodeURIComponent(match)}` : '';
+    } catch (err) {
+      return '';
+    }
+  }
+
+  function withLocalIcons(list) {
+    return list.map(g => ({ ...g, icon: findLocalGiftImage(g.name) || g.icon || '' }));
+  }
 
   const server = http.createServer(app);
   const wss = new WebSocketServer({ server, path: '/ws' });
@@ -59,7 +83,7 @@ function createServer({ userDataDir, port = 8420 }) {
       availableGifts.sort((a, b) => a.diamondCost - b.diamondCost);
       giftsSource = 'account';
       saveGiftsCache(availableGifts);
-      broadcast('gifts', { source: giftsSource, gifts: availableGifts });
+      broadcast('gifts', { source: giftsSource, gifts: withLocalIcons(availableGifts) });
     }
   }
 
@@ -85,7 +109,7 @@ function createServer({ userDataDir, port = 8420 }) {
     ws.send(JSON.stringify({ type: 'status', payload: connectionState }));
     ws.send(JSON.stringify({ type: 'profile', payload: store.getActive() }));
     ws.send(JSON.stringify({ type: 'ranking', payload: getRankingArray() }));
-    ws.send(JSON.stringify({ type: 'gifts', payload: { source: giftsSource, gifts: availableGifts } }));
+    ws.send(JSON.stringify({ type: 'gifts', payload: { source: giftsSource, gifts: withLocalIcons(availableGifts) } }));
   });
 
   function getRankingArray() {
@@ -185,6 +209,7 @@ function createServer({ userDataDir, port = 8420 }) {
         gift: giftName,
         count: event.repeatCount || 1,
         diamonds,
+        icon: findLocalGiftImage(giftName),
         text: cfg.giftText
           .replace('{user}', displayName)
           .replace('{gift}', giftName)
@@ -365,7 +390,7 @@ function createServer({ userDataDir, port = 8420 }) {
     res.json({ ok: true });
   });
 
-  app.get('/api/gifts', (req, res) => res.json({ source: giftsSource, gifts: availableGifts }));
+  app.get('/api/gifts', (req, res) => res.json({ source: giftsSource, gifts: withLocalIcons(availableGifts) }));
 
   app.post('/api/connect', async (req, res) => {
     const { username } = req.body;
@@ -558,6 +583,7 @@ function createServer({ userDataDir, port = 8420 }) {
 
   // ---- Overlays y panel estáticos ----
   app.use('/overlay', express.static(path.join(__dirname, '..', 'overlays')));
+  app.use('/gift-images', express.static(giftImagesDir));
   app.use('/', express.static(path.join(__dirname, '..', 'renderer')));
 
   server.listen(port, () => {
