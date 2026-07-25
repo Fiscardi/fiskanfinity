@@ -65,7 +65,17 @@
       <h3>Elegir regalo</h3>
       <button class="ghost small" id="closeGiftModal">✕</button>
     </div>
-    <input type="text" id="giftSearchInput" class="modal-search" placeholder="Buscar regalo por nombre..." />
+    <div class="gift-filters-row">
+      <input type="text" id="giftSearchInput" class="modal-search" placeholder="Buscar regalo por nombre..." />
+      <select id="giftValueFilter" class="modal-search gift-value-select">
+        <option value="all">Todas las monedas</option>
+        <option value="0-10">1 – 10 💎</option>
+        <option value="11-50">11 – 50 💎</option>
+        <option value="51-200">51 – 200 💎</option>
+        <option value="201-1000">201 – 1000 💎</option>
+        <option value="1001-999999">1000+ 💎</option>
+      </select>
+    </div>
     <p class="gift-source-banner" id="giftSourceBanner" style="display:none"></p>
     <div class="gift-grid" id="giftGrid"></div>
   </div>

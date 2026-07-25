@@ -77,10 +77,17 @@ function createServer({ userDataDir, port = 8420 }) {
     if (!giftName) return;
     const idx = availableGifts.findIndex(g => g.name.toLowerCase() === giftName.toLowerCase());
     if (idx === -1) {
-      // Si todavía estábamos mostrando la lista básica, arrancamos una real de cero
-      if (giftsSource === 'default') availableGifts = [];
+      // Sumamos el regalo real a la lista (no borramos la básica: cuantos
+      // más regalos conozcamos, mejor para elegir en el selector).
       availableGifts.push({ id: giftId, name: giftName, diamondCost, icon: '' });
       availableGifts.sort((a, b) => a.diamondCost - b.diamondCost);
+      giftsSource = 'account';
+      saveGiftsCache(availableGifts);
+      broadcast('gifts', { source: giftsSource, gifts: withLocalIcons(availableGifts) });
+    } else if (availableGifts[idx].diamondCost !== diamondCost) {
+      // Si ya lo conocíamos pero con un costo distinto (ej. era de la lista
+      // básica aproximada), actualizamos al valor real.
+      availableGifts[idx].diamondCost = diamondCost;
       giftsSource = 'account';
       saveGiftsCache(availableGifts);
       broadcast('gifts', { source: giftsSource, gifts: withLocalIcons(availableGifts) });

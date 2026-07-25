@@ -631,7 +631,8 @@ async function loadGifts() {
 function openGiftModal(profileId, eventId) {
   giftModalTarget = { profileId, eventId };
   document.getElementById('giftSearchInput').value = '';
-  renderGiftGrid('');
+  document.getElementById('giftValueFilter').value = 'all';
+  renderGiftGrid();
   document.getElementById('giftModal').style.display = 'flex';
   document.getElementById('giftSearchInput').focus();
 }
@@ -641,7 +642,9 @@ function closeGiftModal() {
   giftModalTarget = null;
 }
 
-function renderGiftGrid(filterText) {
+function renderGiftGrid() {
+  const filterText = document.getElementById('giftSearchInput').value;
+  const valueFilter = document.getElementById('giftValueFilter').value;
   const grid = document.getElementById('giftGrid');
   const banner = document.getElementById('giftSourceBanner');
   if (giftsSource === 'default') {
@@ -651,9 +654,14 @@ function renderGiftGrid(filterText) {
     banner.style.display = 'none';
   }
 
-  const filtered = giftsCatalog.filter(g => g.name.toLowerCase().includes(filterText.toLowerCase()));
+  let [minCoins, maxCoins] = valueFilter === 'all' ? [0, Infinity] : valueFilter.split('-').map(Number);
+  const filtered = giftsCatalog.filter(g =>
+    g.name.toLowerCase().includes(filterText.toLowerCase()) &&
+    g.diamondCost >= minCoins && g.diamondCost <= maxCoins
+  );
 
-  const anyTile = !filterText ? `
+  const showAnyTile = !filterText && valueFilter === 'all';
+  const anyTile = showAnyTile ? `
     <button class="gift-tile gift-tile-any" data-gift-name="" data-gift-coins="1">
       <div class="gift-tile-noicon">✨</div>
       <span class="gt-name">Cualquier regalo</span>
@@ -661,7 +669,7 @@ function renderGiftGrid(filterText) {
     </button>` : '';
 
   if (filtered.length === 0) {
-    grid.innerHTML = anyTile + '<p class="av-hint">No hay regalos que coincidan con la búsqueda.</p>';
+    grid.innerHTML = anyTile + '<p class="av-hint">No hay regalos que coincidan con la búsqueda/filtro.</p>';
   } else {
     grid.innerHTML = anyTile + filtered.map(g => `
       <button class="gift-tile" data-gift-name="${escapeHtml(g.name)}" data-gift-coins="${g.diamondCost}">
@@ -685,7 +693,8 @@ document.getElementById('closeGiftModal').addEventListener('click', closeGiftMod
 document.getElementById('giftModal').addEventListener('click', e => {
   if (e.target.id === 'giftModal') closeGiftModal();
 });
-document.getElementById('giftSearchInput').addEventListener('input', e => renderGiftGrid(e.target.value));
+document.getElementById('giftSearchInput').addEventListener('input', () => renderGiftGrid());
+document.getElementById('giftValueFilter').addEventListener('change', () => renderGiftGrid());
 
 // ---------- Configuración (clave de Euler Stream) ----------
 document.getElementById('openSettingsBtn').addEventListener('click', async () => {

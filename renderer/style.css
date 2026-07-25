@@ -536,6 +536,23 @@ button.danger { color: #ff8fae; }
   font-size: 16px;
   margin: 0;
 }
+.gift-filters-row {
+  display: flex;
+  gap: 8px;
+}
+.gift-filters-row .modal-search {
+  margin: 0;
+}
+.gift-filters-row #giftSearchInput {
+  flex: 1;
+  min-width: 0;
+}
+.gift-value-select {
+  flex-shrink: 0;
+  width: 150px;
+  cursor: pointer;
+}
+
 .modal-search {
   background: var(--bg);
   border: 1px solid var(--line);
@@ -564,6 +581,9 @@ button.danger { color: #ff8fae; }
   gap: 8px;
   overflow-y: auto;
   padding-right: 4px;
+  flex: 1;
+  min-height: 0;
+  align-content: start;
 }
 .gift-tile {
   display: flex;
