@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Overlay - TTS Chat</title>
+<style>
+  html, body { margin:0; background: transparent; overflow: hidden; font-family: 'Inter', 'Segoe UI', sans-serif; }
+  #box {
+    max-width: 480px;
+    padding: 12px 18px;
+    background: rgba(15,16,24,0.85);
+    border: 2px solid #35d488;
+    border-radius: 14px;
+    color: #fff;
+    display: none;
+  }
+  #box.show { display: block; }
+  #user {
+    font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    color: #35d488;
+    margin-bottom: 4px;
+  }
+  #comment { font-size: 15px; line-height: 1.35; }
+  #speaking-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    color: #35d488;
+    margin-top: 6px;
+  }
+</style>
+</head>
+<body>
+<div id="box">
+  <div id="user"></div>
+  <div id="comment"></div>
+  <div id="speaking-badge">🔊 Leyendo en voz alta…</div>
+</div>
+<script>
+const box = document.getElementById('box');
+let queue = [];
+let speaking = false;
+
+function pickVoice(voiceName) {
+  const voices = speechSynthesis.getVoices();
+  if (voiceName) {
+    const exact = voices.find(v => v.name === voiceName);
+    if (exact) return exact;
+  }
+  // Si no hay una voz elegida (o no está disponible), preferimos alguna en español
+  return voices.find(v => v.lang && v.lang.toLowerCase().startsWith('es')) || voices[0] || null;
+}
+
+function speakNext() {
+  if (speaking || queue.length === 0) return;
+  const item = queue.shift();
+  speaking = true;
+
+  document.getElementById('user').textContent = item.user;
+  document.getElementById('comment').textContent = item.comment;
+  box.classList.add('show');
+
+  const textToRead = item.readUsername ? `${item.user} dice: ${item.comment}` : item.comment;
+  const utter = new SpeechSynthesisUtterance(textToRead);
+  const voice = pickVoice(item.voiceName);
+  if (voice) utter.voice = voice;
+  utter.rate = item.rate || 1;
+  utter.pitch = item.pitch || 1;
+  utter.volume = item.volume ?? 1;
+
+  utter.onend = utter.onerror = () => {
+    speaking = false;
+    box.classList.remove('show');
+    setTimeout(speakNext, 300);
+  };
+
+  speechSynthesis.speak(utter);
+}
+
+function connectWs() {
+  const ws = new WebSocket('ws://localhost:8420/ws');
+  ws.onmessage = ev => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === 'chat') {
+      queue.push(msg.payload);
+      speakNext();
+    }
+  };
+  ws.onclose = () => setTimeout(connectWs, 1500);
+}
+
+// Los navegadores cargan las voces de forma asincrónica
+speechSynthesis.onvoiceschanged = () => {};
+connectWs();
+</script>
+</body>
+</html>

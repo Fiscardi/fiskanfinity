@@ -36,6 +36,17 @@ function defaultOverlaysConfig() {
       enabled: true,
       showLikes: true,
       showViewers: true
+    },
+    ttsChat: {
+      enabled: false,
+      minLevel: 0,
+      voiceName: '',
+      rate: 1,
+      pitch: 1,
+      volume: 1,
+      maxLength: 200,
+      readUsername: true,
+      ignoreCommands: true
     }
   };
 }
@@ -79,6 +90,9 @@ class ProfileStore {
           parsed.profiles.forEach(p => {
             if (!Array.isArray(p.actions)) p.actions = [];
             if (!Array.isArray(p.events)) p.events = [];
+            if (p.overlays && !p.overlays.ttsChat) {
+              p.overlays.ttsChat = defaultOverlaysConfig().ttsChat;
+            }
           });
           return parsed;
         }

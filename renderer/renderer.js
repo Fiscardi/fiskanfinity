@@ -163,15 +163,51 @@ function renderCards() {
     <div class="field-row"><span>Mostrar likes</span><button class="switch small ${counter.showLikes ? 'on' : ''}" data-field="counter.showLikes" data-bool="1"></button></div>
     <div class="field-row"><span>Mostrar espectadores</span><button class="switch small ${counter.showViewers ? 'on' : ''}" data-field="counter.showViewers" data-bool="1"></button></div>`;
 
+  const tts = profile.overlays.ttsChat;
+  const ttsBody = `
+    <div class="field-row"><span>Nivel mínimo de fan</span><input type="number" min="0" value="${tts.minLevel}" data-field="ttsChat.minLevel" data-num="1" /></div>
+    <div class="field-row"><span>Voz</span><select id="ttsVoiceSelect" data-field="ttsChat.voiceName" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; padding:5px 8px; font-size:12px; max-width:190px;"><option value="">Cargando voces…</option></select></div>
+    <div class="field-row"><span>Velocidad</span><input type="number" min="0.5" max="2" step="0.1" value="${tts.rate}" data-field="ttsChat.rate" data-num="1" /></div>
+    <div class="field-row"><span>Tono</span><input type="number" min="0" max="2" step="0.1" value="${tts.pitch}" data-field="ttsChat.pitch" data-num="1" /></div>
+    <div class="field-row"><span>Leer nombre de usuario</span><button class="switch small ${tts.readUsername ? 'on' : ''}" data-field="ttsChat.readUsername" data-bool="1"></button></div>
+    <div class="field-row"><span>Ignorar mensajes con !comando</span><button class="switch small ${tts.ignoreCommands ? 'on' : ''}" data-field="ttsChat.ignoreCommands" data-bool="1"></button></div>
+    <p class="av-hint" style="margin:6px 0 0;">El "nivel de fan" sale de las insignias que manda TikTok en el chat — todavía no lo probamos con un chat real, así que si algún mensaje que debería sonar no suena (o al revés), avisame para ajustarlo.</p>
+    <div class="card-actions"><button class="small" data-test-tts="1">Probar</button></div>`;
+
   grid.innerHTML =
     cardShell('🎁', 'Alertas', 'alert', profile, alertBody, 'alert') +
     cardShell('🎯', 'Barra de meta', 'goal', profile, goalBody, 'goal') +
     cardShell('🏆', 'Top regalos', 'ranking', profile, rankingBody, 'ranking') +
     cardShell('📊', 'Contador en vivo', 'counter', profile, counterBody, 'counter') +
+    cardShell('🗣️', 'TTS Chat', 'ttsChat', profile, ttsBody, 'ttschat') +
     eventsCard();
 
   wireCardEvents(profile);
   wireEventsCard();
+  populateVoiceSelect(tts.voiceName);
+
+  const testTtsBtn = document.querySelector('[data-test-tts]');
+  if (testTtsBtn) {
+    testTtsBtn.addEventListener('click', () => {
+      api('/api/test-alert/chat', {
+        method: 'POST',
+        body: JSON.stringify({ user: 'Usuario_Prueba', comment: 'Este es un mensaje de prueba del chat', level: tts.minLevel || 0 })
+      });
+    });
+  }
+}
+
+function populateVoiceSelect(selectedName) {
+  const select = document.getElementById('ttsVoiceSelect');
+  if (!select) return;
+  const render = () => {
+    const voices = speechSynthesis.getVoices();
+    if (voices.length === 0) return;
+    select.innerHTML = '<option value="">Automática (preferir español)</option>' +
+      voices.map(v => `<option value="${escapeHtml(v.name)}" ${v.name === selectedName ? 'selected' : ''}>${escapeHtml(v.name)} (${v.lang})</option>`).join('');
+  };
+  render();
+  speechSynthesis.onvoiceschanged = render;
 }
 
 function eventsCard() {

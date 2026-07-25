@@ -275,6 +275,47 @@ function createServer({ userDataDir, port = 8420 }) {
     }
   }
 
+  // Busca un número de "nivel" dentro de las insignias del usuario.
+  // No tenemos forma de confirmar el formato exacto sin un chat real de
+  // prueba, así que por ahora agarra el primer número que aparezca en
+  // cualquiera de las insignias (ej. "fan_club_level_3" -> 3). Si en la
+  // práctica viene distinto, se ajusta esta función nada más.
+  function extractLevelFromBadges(badges) {
+    if (!Array.isArray(badges) || badges.length === 0) return 0;
+    let max = 0;
+    for (const b of badges) {
+      const match = String(b).match(/(\d+)/);
+      if (match) max = Math.max(max, parseInt(match[1], 10));
+    }
+    return max;
+  }
+
+  function handleChatEvent(event) {
+    const profile = store.getActive();
+    const cfg = profile.overlays.ttsChat;
+    if (!cfg.enabled) return;
+
+    let comment = (event.comment || '').trim();
+    if (!comment) return;
+    if (cfg.ignoreCommands && comment.startsWith('!')) return;
+    if (cfg.maxLength && comment.length > cfg.maxLength) comment = comment.slice(0, cfg.maxLength);
+
+    const level = extractLevelFromBadges(event.user?.badges);
+    if (level < (cfg.minLevel || 0)) return;
+
+    const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
+    broadcast('chat', {
+      user: displayName,
+      comment,
+      level,
+      readUsername: cfg.readUsername,
+      voiceName: cfg.voiceName,
+      rate: cfg.rate,
+      pitch: cfg.pitch,
+      volume: cfg.volume
+    });
+  }
+
   async function connectToTikTok(username) {
     if (tiktokConnection) {
       try { tiktokConnection.disconnect(); } catch (e) { /* noop */ }
@@ -355,6 +396,8 @@ function createServer({ userDataDir, port = 8420 }) {
     tiktokConnection.on('subscribe', event => { lastEventAt = Date.now(); handleSubscribeEvent(event); });
 
     tiktokConnection.on('like', event => { lastEventAt = Date.now(); handleLikeEvent(event); });
+
+    tiktokConnection.on('chat', event => { lastEventAt = Date.now(); handleChatEvent(event); });
 
     tiktokConnection.on('roomUserSeq', event => {
       lastEventAt = Date.now();
@@ -569,6 +612,15 @@ function createServer({ userDataDir, port = 8420 }) {
     if (kind === 'likeMilestone') {
       const total = Number(body.total) > 0 ? Number(body.total) : (lastMilestoneSent + 100);
       handleLikeEvent({ totalLikes: total, likeCount: total - lastMilestoneSent });
+      return res.json({ ok: true });
+    }
+
+    if (kind === 'chat') {
+      const level = Number(body.level) || 0;
+      handleChatEvent({
+        user: { nickname: user, uniqueId: user, badges: level > 0 ? [`fan_club_level_${level}`] : [] },
+        comment: (body.comment && body.comment.trim()) || 'Este es un mensaje de prueba del chat'
+      });
       return res.json({ ok: true });
     }
 
