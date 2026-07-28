@@ -70,7 +70,8 @@ function makeDefaultAction(n) {
     duration: 5000,
     soundUrl: '',
     webhookUrl: '',
-    webhookMethod: 'POST'
+    webhookMethod: 'POST',
+    minecraftCommand: ''
   };
 }
 
@@ -194,7 +195,8 @@ class ProfileStore {
       duration: data.duration || action.duration,
       soundUrl: data.soundUrl || '',
       webhookUrl: data.webhookUrl || '',
-      webhookMethod: data.webhookMethod || 'POST'
+      webhookMethod: data.webhookMethod || 'POST',
+      minecraftCommand: data.minecraftCommand || ''
     });
     profile.actions.push(action);
     this.persist();

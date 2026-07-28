@@ -450,7 +450,7 @@ function switchTab(tab) {
   document.getElementById('cardsGrid').style.display = tab === 'overlays' ? 'grid' : 'none';
   document.getElementById('actionsView').style.display = tab === 'actions' ? 'grid' : 'none';
   document.getElementById('gamesView').style.display = tab === 'games' ? 'block' : 'none';
-  if (tab === 'games') loadGames();
+  if (tab === 'games') { loadGames(); loadMcConfig(); loadTemplates(); }
 }
 
 // ---------- Acciones (librería) ----------
@@ -476,6 +476,7 @@ function renderActionsList(profile) {
       <div class="field-row"><span>Texto (usá {user})</span><input type="text" value="${escapeHtml(a.text)}" data-a-field="text" /></div>
       <div class="field-row"><span>Sonido (URL .mp3, opcional)</span><input type="text" value="${escapeHtml(a.soundUrl || '')}" data-a-field="soundUrl" placeholder="https://..." /></div>
       <div class="field-row"><span>Webhook hacia el juego/mod (opcional)</span><input type="text" value="${escapeHtml(a.webhookUrl || '')}" data-a-field="webhookUrl" placeholder="http://localhost:PUERTO/..." /></div>
+      <div class="field-row"><span>Comando de Minecraft (RCON, opcional)</span><input type="text" value="${escapeHtml(a.minecraftCommand || '')}" data-a-field="minecraftCommand" placeholder="give {user} diamond 5" /></div>
       <div class="ac-row2">
         <select data-a-field="webhookMethod" title="Método del webhook" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px;">
           <option value="POST" ${(a.webhookMethod || 'POST') === 'POST' ? 'selected' : ''}>POST</option>
@@ -759,6 +760,103 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
   } catch (err) { toast(err.message); }
 });
 
+// ---------- Minecraft (RCON) ----------
+async function loadMcConfig() {
+  try {
+    const cfg = await api('/api/minecraft/config');
+    document.getElementById('mcHost').value = cfg.host || '';
+    document.getElementById('mcPort').value = cfg.port || 25575;
+    document.getElementById('mcPassword').value = cfg.password || '';
+    document.getElementById('mcPlayerName').value = cfg.playerName || '';
+  } catch (err) { /* noop */ }
+  refreshMcStatus();
+}
+
+document.getElementById('mcSavePlayerBtn').addEventListener('click', async () => {
+  const playerName = document.getElementById('mcPlayerName').value.trim();
+  try {
+    await api('/api/minecraft/player-name', { method: 'POST', body: JSON.stringify({ playerName }) });
+    toast('Nombre de usuario guardado');
+  } catch (err) { toast(err.message); }
+});
+
+async function refreshMcStatus() {
+  try {
+    const status = await api('/api/minecraft/status');
+    setMcStatus(status);
+  } catch (err) { /* noop */ }
+}
+
+function setMcStatus(status) {
+  const led = document.getElementById('mcLed');
+  const text = document.getElementById('mcStatusText');
+  const btn = document.getElementById('mcConnectBtn');
+  led.classList.toggle('on', status.connected);
+  if (status.connected) {
+    text.textContent = `Conectado a ${status.host}`;
+    btn.textContent = 'Desconectar';
+  } else {
+    text.textContent = status.error ? `Error: ${status.error}` : 'Desconectado';
+    btn.textContent = 'Conectar';
+  }
+}
+
+document.getElementById('mcConnectBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('mcConnectBtn');
+  if (btn.textContent === 'Desconectar') {
+    await api('/api/minecraft/disconnect', { method: 'POST' });
+    refreshMcStatus();
+    return;
+  }
+  const host = document.getElementById('mcHost').value.trim();
+  const port = document.getElementById('mcPort').value.trim();
+  const password = document.getElementById('mcPassword').value;
+  if (!host) { toast('Escribí la IP o dominio del servidor'); return; }
+  btn.textContent = 'Conectando…';
+  try {
+    const status = await api('/api/minecraft/connect', { method: 'POST', body: JSON.stringify({ host, port, password }) });
+    setMcStatus(status);
+    if (status.connected) toast('Conectado al servidor de Minecraft');
+  } catch (err) { toast(err.message); }
+});
+
+// ---------- Plantillas por juego ----------
+async function loadTemplates() {
+  try {
+    const list = await api('/api/templates');
+    renderTemplates(list);
+  } catch (err) { /* noop */ }
+}
+
+function renderTemplates(list) {
+  const container = document.getElementById('templatesList');
+  container.innerHTML = list.map(t => `
+    <div class="game-card template-card">
+      ${t.imageUrl ? `<img class="game-thumb" src="${escapeHtml(t.imageUrl)}" alt="" />` : '<div class="game-thumb game-thumb-empty">🎮</div>'}
+      <div class="game-body">
+        <div class="ac-top"><strong>${escapeHtml(t.name)}</strong></div>
+        <p class="av-hint" style="margin:4px 0 8px;">${escapeHtml(t.description)}</p>
+        <p class="av-hint" style="margin:0 0 8px; color:var(--amber);">Necesita: ${escapeHtml(t.requires)}</p>
+        <div class="card-actions">
+          <button class="small primary" data-apply-template="${t.id}">Aplicar al perfil activo (${t.actionCount} acciones)</button>
+        </div>
+      </div>
+    </div>`).join('');
+
+  container.querySelectorAll('[data-apply-template]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const profile = activeProfile();
+      if (!profile) return;
+      if (!confirm(`Esto agrega ${btn.textContent.match(/\d+/)[0]} acciones nuevas y sus eventos al perfil "${profile.name}". ¿Seguimos?`)) return;
+      try {
+        await api(`/api/profiles/${profile.id}/apply-template/${btn.dataset.applyTemplate}`, { method: 'POST' });
+        toast('Plantilla aplicada — mirala en la pestaña Acciones y Eventos');
+        await loadProfiles();
+      } catch (err) { toast(err.message); }
+    });
+  });
+}
+
 // ---------- Juegos y mods ----------
 let gamesList = [];
 
@@ -777,14 +875,18 @@ function renderGames() {
   }
   container.innerHTML = gamesList.map(g => `
     <div class="game-card" data-game-id="${g.id}">
-      <div class="ac-top">
-        <input class="ac-name" type="text" value="${escapeHtml(g.name)}" data-g-field="name" />
-        <button class="small ghost danger" data-g-remove="${g.id}">✕</button>
+      ${g.imageUrl ? `<img class="game-thumb" src="${escapeHtml(g.imageUrl)}" alt="" />` : '<div class="game-thumb game-thumb-empty">🎮</div>'}
+      <div class="game-body">
+        <div class="ac-top">
+          <input class="ac-name" type="text" value="${escapeHtml(g.name)}" data-g-field="name" />
+          <button class="small ghost danger" data-g-remove="${g.id}">✕</button>
+        </div>
+        <div class="field-row"><span>Imagen (URL, opcional)</span><input type="text" value="${escapeHtml(g.imageUrl || '')}" data-g-field="imageUrl" placeholder="https://..." /></div>
+        <div class="field-row"><span>Descripción</span><input type="text" value="${escapeHtml(g.description || '')}" data-g-field="description" placeholder="Ej: Metal Slug 6 - vidas y créditos" /></div>
+        <div class="field-row"><span>Link de descarga</span><input type="text" value="${escapeHtml(g.downloadUrl || '')}" data-g-field="downloadUrl" placeholder="https://..." /></div>
+        <div class="field-row"><span>Notas / instrucciones</span><input type="text" value="${escapeHtml(g.instructions || '')}" data-g-field="instructions" placeholder="Ej: hotkey F1 = +1 vida" /></div>
+        ${g.downloadUrl ? `<div class="card-actions"><a href="${escapeHtml(g.downloadUrl)}" target="_blank" rel="noopener"><button class="small primary">Descargar</button></a></div>` : ''}
       </div>
-      <div class="field-row"><span>Descripción</span><input type="text" value="${escapeHtml(g.description || '')}" data-g-field="description" placeholder="Ej: Metal Slug 6 - vidas y créditos" /></div>
-      <div class="field-row"><span>Link de descarga</span><input type="text" value="${escapeHtml(g.downloadUrl || '')}" data-g-field="downloadUrl" placeholder="https://..." /></div>
-      <div class="field-row"><span>Notas / instrucciones</span><input type="text" value="${escapeHtml(g.instructions || '')}" data-g-field="instructions" placeholder="Ej: hotkey F1 = +1 vida" /></div>
-      ${g.downloadUrl ? `<div class="card-actions"><a href="${escapeHtml(g.downloadUrl)}" target="_blank" rel="noopener"><button class="small primary">Descargar</button></a></div>` : ''}
     </div>`).join('');
 
   container.querySelectorAll('[data-g-field]').forEach(el => {

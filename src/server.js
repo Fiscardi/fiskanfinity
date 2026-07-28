@@ -4,9 +4,11 @@ const express = require('express');
 const http = require('http');
 const { WebSocketServer } = require('ws');
 const { TikTokLive } = require('@tiktool/live');
+const { Rcon } = require('rcon-client');
 const { ProfileStore, MAX_PROFILES } = require('./profileStore');
 const { AppConfig } = require('./appConfig');
 const { GamesStore } = require('./gamesStore');
+const { templates } = require('./templates');
 const DEFAULT_GIFTS = require('./defaultGifts');
 
 function createServer({ userDataDir, port = 8420 }) {
@@ -50,6 +52,46 @@ function createServer({ userDataDir, port = 8420 }) {
   let connectionState = { connected: false, username: null, roomId: null, error: null };
   let lastEventAt = 0;
   let heartbeatCheckInterval = null;
+
+  // ---- Conexión RCON a un servidor de Minecraft (opcional, aparte de TikTok) ----
+  let mcRcon = null;
+  let mcStatus = { connected: false, host: null, error: null };
+
+  async function connectMinecraft(host, port, password) {
+    if (mcRcon) {
+      try { await mcRcon.end(); } catch (e) { /* noop */ }
+      mcRcon = null;
+    }
+    try {
+      mcRcon = await Rcon.connect({ host, port: Number(port) || 25575, password, timeout: 5000 });
+      mcRcon.on('end', () => {
+        mcStatus = { connected: false, host, error: 'Se cerró la conexión' };
+      });
+      mcStatus = { connected: true, host, error: null };
+    } catch (err) {
+      mcRcon = null;
+      mcStatus = { connected: false, host, error: err.message || String(err) };
+    }
+    return mcStatus;
+  }
+
+  async function disconnectMinecraft() {
+    if (mcRcon) {
+      try { await mcRcon.end(); } catch (e) { /* noop */ }
+      mcRcon = null;
+    }
+    mcStatus = { connected: false, host: null, error: null };
+  }
+
+  async function sendMinecraftCommand(command) {
+    if (!mcRcon || !mcStatus.connected) return;
+    try {
+      await mcRcon.send(command);
+    } catch (err) {
+      console.error('Comando RCON de Minecraft falló:', err.message);
+    }
+  }
+
   // Catálogo de regalos para el selector de eventos: arranca con el que haya
   // quedado guardado de una conexión anterior, o si nunca conectaste, con el
   // básico precargado (aproximado, sin imágenes).
@@ -160,6 +202,12 @@ function createServer({ userDataDir, port = 8420 }) {
       fetch(action.webhookUrl, opts).catch(err => {
         console.error(`Webhook de la acción "${action.name}" falló:`, err.message);
       });
+    }
+
+    // Comando de Minecraft por RCON (oficial, no requiere hackear nada)
+    if (action.minecraftCommand) {
+      const mcVars = { ...vars, player: config.get('mcPlayerName') || '' };
+      sendMinecraftCommand(resolveText(action.minecraftCommand, mcVars));
     }
   }
 
@@ -445,6 +493,70 @@ function createServer({ userDataDir, port = 8420 }) {
   app.get('/api/gifts', (req, res) => res.json({ source: giftsSource, gifts: withLocalIcons(availableGifts) }));
 
   // ---- Biblioteca de juegos/mods ----
+  // ---- Minecraft (RCON) ----
+  app.get('/api/minecraft/status', (req, res) => res.json(mcStatus));
+
+  app.get('/api/minecraft/config', (req, res) => res.json({
+    host: config.get('mcRconHost') || '',
+    port: config.get('mcRconPort') || 25575,
+    password: config.get('mcRconPassword') || '',
+    playerName: config.get('mcPlayerName') || ''
+  }));
+
+  app.post('/api/minecraft/player-name', (req, res) => {
+    config.set('mcPlayerName', (req.body.playerName || '').trim());
+    res.json({ ok: true });
+  });
+
+  // ---- Plantillas ----
+  app.get('/api/templates', (req, res) => {
+    res.json(templates.map(t => ({
+      id: t.id, name: t.name, imageUrl: t.imageUrl, description: t.description,
+      requires: t.requires, actionCount: t.actions.length
+    })));
+  });
+
+  app.post('/api/profiles/:id/apply-template/:templateId', (req, res) => {
+    const template = templates.find(t => t.id === req.params.templateId);
+    if (!template) return res.status(404).json({ error: 'Plantilla no encontrada' });
+    try {
+      const createdActions = template.actions.map(a => store.createAction(req.params.id, a));
+      template.events.forEach(e => {
+        const action = createdActions[e.actionIndex];
+        store.createEvent(req.params.id, { ...e, actionId: action ? action.id : null });
+      });
+      if (req.params.id === store.data.activeProfileId) broadcastProfile();
+      res.json({ ok: true, actionsCreated: createdActions.length, eventsCreated: template.events.length });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/minecraft/connect', async (req, res) => {
+    const { host, port, password } = req.body;
+    if (!host) return res.status(400).json({ error: 'Falta el host' });
+    config.set('mcRconHost', host);
+    config.set('mcRconPort', port || 25575);
+    config.set('mcRconPassword', password || '');
+    const status = await connectMinecraft(host, port, password);
+    res.json(status);
+  });
+
+  app.post('/api/minecraft/disconnect', async (req, res) => {
+    await disconnectMinecraft();
+    res.json({ ok: true });
+  });
+
+  app.post('/api/minecraft/test', async (req, res) => {
+    if (!mcStatus.connected) return res.status(400).json({ error: 'No estás conectado al servidor' });
+    try {
+      const result = await mcRcon.send(req.body.command || 'list');
+      res.json({ ok: true, result });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   app.get('/api/games', (req, res) => res.json(gamesStore.getAll()));
 
   app.post('/api/games', (req, res) => {
