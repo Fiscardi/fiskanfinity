@@ -6,6 +6,7 @@ const { WebSocketServer } = require('ws');
 const { TikTokLive } = require('@tiktool/live');
 const { ProfileStore, MAX_PROFILES } = require('./profileStore');
 const { AppConfig } = require('./appConfig');
+const { GamesStore } = require('./gamesStore');
 const DEFAULT_GIFTS = require('./defaultGifts');
 
 function createServer({ userDataDir, port = 8420 }) {
@@ -14,6 +15,7 @@ function createServer({ userDataDir, port = 8420 }) {
 
   const store = new ProfileStore(userDataDir);
   const config = new AppConfig(userDataDir);
+  const gamesStore = new GamesStore(userDataDir);
   const giftsCacheFile = path.join(userDataDir, 'gifts-cache.json');
   const giftImagesDir = path.join(__dirname, '..', 'assets', 'gifts');
 
@@ -441,6 +443,24 @@ function createServer({ userDataDir, port = 8420 }) {
   });
 
   app.get('/api/gifts', (req, res) => res.json({ source: giftsSource, gifts: withLocalIcons(availableGifts) }));
+
+  // ---- Biblioteca de juegos/mods ----
+  app.get('/api/games', (req, res) => res.json(gamesStore.getAll()));
+
+  app.post('/api/games', (req, res) => {
+    try { res.json(gamesStore.create(req.body)); }
+    catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
+  app.put('/api/games/:id', (req, res) => {
+    try { res.json(gamesStore.update(req.params.id, req.body)); }
+    catch (err) { res.status(400).json({ error: err.message }); }
+  });
+
+  app.delete('/api/games/:id', (req, res) => {
+    try { gamesStore.remove(req.params.id); res.json({ ok: true }); }
+    catch (err) { res.status(400).json({ error: err.message }); }
+  });
 
   app.post('/api/connect', async (req, res) => {
     const { username } = req.body;

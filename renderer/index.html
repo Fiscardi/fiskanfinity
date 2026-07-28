@@ -29,6 +29,7 @@
     <div class="tabbar">
       <button class="tab active" id="tabOverlays">Overlays</button>
       <button class="tab" id="tabActions">Acciones y Eventos</button>
+      <button class="tab" id="tabGames">Juegos</button>
     </div>
     <div class="grid" id="cardsGrid"></div>
     <div class="actions-view" id="actionsView" style="display:none">
@@ -53,6 +54,14 @@
           <tbody id="eventsBody"></tbody>
         </table>
       </div>
+    </div>
+    <div class="games-view" id="gamesView" style="display:none">
+      <div class="av-head">
+        <h3>Tus juegos y mods</h3>
+        <button class="small primary" id="addGameBtn">+ Nuevo juego</button>
+      </div>
+      <p class="av-hint">Acá vas guardando, juego por juego, el link de descarga del mod/parche/tabla de Cheat Engine que le corresponda (y tus propias notas de cómo armarlo). FiskLive no viene con ningún mod ya hecho — es tu propia estantería para no perder los links.</p>
+      <div id="gamesList" class="game-cards"></div>
     </div>
   </main>
 </div>

@@ -622,6 +622,25 @@ button.danger { color: #ff8fae; }
 .gift-tile-any { border-color: var(--cyan); }
 .gift-tile-any .gt-coins { color: var(--cyan); }
 
+/* ---- juegos y mods ---- */
+.games-view { max-width: 700px; }
+.game-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 12px;
+}
+.game-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--cyan);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.game-card .field-row input[type="text"] { width: 100%; }
+.game-card .field-row { flex-direction: column; align-items: stretch; gap: 4px; }
+.game-card .field-row span { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+
 /* ---- tarjeta de eventos y pruebas ---- */
 .card.wide {
   grid-column: 1 / -1;

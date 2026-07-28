@@ -442,11 +442,15 @@ function logIncoming(msg) {
 // ---------- Pestañas ----------
 document.getElementById('tabOverlays').addEventListener('click', () => switchTab('overlays'));
 document.getElementById('tabActions').addEventListener('click', () => switchTab('actions'));
+document.getElementById('tabGames').addEventListener('click', () => switchTab('games'));
 function switchTab(tab) {
   document.getElementById('tabOverlays').classList.toggle('active', tab === 'overlays');
   document.getElementById('tabActions').classList.toggle('active', tab === 'actions');
+  document.getElementById('tabGames').classList.toggle('active', tab === 'games');
   document.getElementById('cardsGrid').style.display = tab === 'overlays' ? 'grid' : 'none';
   document.getElementById('actionsView').style.display = tab === 'actions' ? 'grid' : 'none';
+  document.getElementById('gamesView').style.display = tab === 'games' ? 'block' : 'none';
+  if (tab === 'games') loadGames();
 }
 
 // ---------- Acciones (librería) ----------
@@ -753,6 +757,64 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
     document.getElementById('settingsModal').style.display = 'none';
     toast('Clave guardada. Probá conectar de nuevo.');
   } catch (err) { toast(err.message); }
+});
+
+// ---------- Juegos y mods ----------
+let gamesList = [];
+
+async function loadGames() {
+  try {
+    gamesList = await api('/api/games');
+    renderGames();
+  } catch (err) { toast(err.message); }
+}
+
+function renderGames() {
+  const container = document.getElementById('gamesList');
+  if (gamesList.length === 0) {
+    container.innerHTML = '<p class="av-hint">Todavía no agregaste ningún juego.</p>';
+    return;
+  }
+  container.innerHTML = gamesList.map(g => `
+    <div class="game-card" data-game-id="${g.id}">
+      <div class="ac-top">
+        <input class="ac-name" type="text" value="${escapeHtml(g.name)}" data-g-field="name" />
+        <button class="small ghost danger" data-g-remove="${g.id}">✕</button>
+      </div>
+      <div class="field-row"><span>Descripción</span><input type="text" value="${escapeHtml(g.description || '')}" data-g-field="description" placeholder="Ej: Metal Slug 6 - vidas y créditos" /></div>
+      <div class="field-row"><span>Link de descarga</span><input type="text" value="${escapeHtml(g.downloadUrl || '')}" data-g-field="downloadUrl" placeholder="https://..." /></div>
+      <div class="field-row"><span>Notas / instrucciones</span><input type="text" value="${escapeHtml(g.instructions || '')}" data-g-field="instructions" placeholder="Ej: hotkey F1 = +1 vida" /></div>
+      ${g.downloadUrl ? `<div class="card-actions"><a href="${escapeHtml(g.downloadUrl)}" target="_blank" rel="noopener"><button class="small primary">Descargar</button></a></div>` : ''}
+    </div>`).join('');
+
+  container.querySelectorAll('[data-g-field]').forEach(el => {
+    const card = el.closest('.game-card');
+    const gameId = card.dataset.gameId;
+    const field = el.dataset.gField;
+    el.addEventListener('change', () => saveGame(gameId, { [field]: el.value }));
+  });
+  container.querySelectorAll('[data-g-remove]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('¿Eliminar este juego de la lista?')) return;
+      await api(`/api/games/${btn.dataset.gRemove}`, { method: 'DELETE' });
+      await loadGames();
+    });
+  });
+}
+
+let gameSaveTimers = {};
+function saveGame(gameId, patch) {
+  clearTimeout(gameSaveTimers[gameId]);
+  gameSaveTimers[gameId] = setTimeout(async () => {
+    try {
+      await api(`/api/games/${gameId}`, { method: 'PUT', body: JSON.stringify(patch) });
+    } catch (err) { toast(err.message); }
+  }, 400);
+}
+
+document.getElementById('addGameBtn').addEventListener('click', async () => {
+  await api('/api/games', { method: 'POST', body: JSON.stringify({ name: 'Juego nuevo' }) });
+  await loadGames();
 });
 
 (async function init() {
