@@ -205,24 +205,21 @@ function createServer({ userDataDir, port = 8420 }) {
       });
     }
 
-    // Vidas de Crash Bandicoot (escritura de memoria vía pointer de Cheat Engine)
-    if (action.crashBandicootLives) {
-      try {
-        crashLives.addLives(Number(action.crashBandicootLives));
-      } catch (err) {
-        console.error('No se pudo escribir en la memoria de Crash Bandicoot (¿está el juego abierto?):', err.message);
-      }
-    }
+   // Vidas de Crash Bandicoot (escritura de memoria vía pointer de Cheat Engine)
+       if (action.crashBandicootLives) {
+         try {
+           crashLives.addLives(Number(action.crashBandicootLives));
+         } catch (err) {
+           console.error('No se pudo escribir en la memoria de Crash Bandicoot (¿está el juego abierto?):', err.message);
+         }
+       }
 
-    // Comando de Minecraft por RCON (oficial, no requiere hackear nada)
-    if (action.minecraftCommand) {
-
-    // Comando de Minecraft por RCON (oficial, no requiere hackear nada)
-    if (action.minecraftCommand) {
-      const mcVars = { ...vars, player: config.get('mcPlayerName') || '' };
-      sendMinecraftCommand(resolveText(action.minecraftCommand, mcVars));
-    }
-  }
+       // Comando de Minecraft por RCON (oficial, no requiere hackear nada)
+       if (action.minecraftCommand) {
+         const mcVars = { ...vars, player: config.get('mcPlayerName') || '' };
+         sendMinecraftCommand(resolveText(action.minecraftCommand, mcVars));
+       }
+     }
 
   // Revisa los eventos configurados del perfil activo y dispara los que matcheen
   function checkEvents(triggerType, vars) {
