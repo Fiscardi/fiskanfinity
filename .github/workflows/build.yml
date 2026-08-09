@@ -5,8 +5,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+ build-windows:
+    runs-on: windows-2022
     steps:
       - name: Descargar el código
         uses: actions/checkout@v4
