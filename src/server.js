@@ -1,4 +1,5 @@
 const path = require('path');
+const os = require('os');
 const fs = require('fs');
 const express = require('express');
 const http = require('http');
@@ -205,14 +206,18 @@ function createServer({ userDataDir, port = 8420 }) {
       });
     }
 
-   // Vidas de Crash Bandicoot (escritura de memoria vía pointer de Cheat Engine)
-       if (action.crashBandicootLives) {
-         try {
-           crashLives.addLives(Number(action.crashBandicootLives));
-         } catch (err) {
-           console.error('No se pudo escribir en la memoria de Crash Bandicoot (¿está el juego abierto?):', err.message);
-         }
-       }
+  // Vidas de Crash Bandicoot (escritura de memoria vía pointer de Cheat Engine)
+    if (action.crashBandicootLives) {
+      try {
+        crashLives.addLives(Number(action.crashBandicootLives));
+      } catch (err) {
+        console.error('No se pudo escribir en la memoria de Crash Bandicoot (¿está el juego abierto?):', err.message);
+        try {
+          const logPath = path.join(os.homedir(), 'Desktop', 'fisklive-crash-debug.log');
+          fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${err.stack || err.message}\n`);
+        } catch (logErr) { /* noop */ }
+      }
+    }
 
        // Comando de Minecraft por RCON (oficial, no requiere hackear nada)
        if (action.minecraftCommand) {
