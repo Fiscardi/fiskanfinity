@@ -17,7 +17,17 @@ jobs:
           node-version: 20.11.1
 
       - name: Instalar dependencias
-        run: npm install
+        run: npm install --foreground-scripts
+
+      - name: Verificar que memoryjs compiló
+        shell: pwsh
+        run: |
+          if (Test-Path "node_modules/memoryjs/build/Release/memoryjs.node") {
+            Write-Host "OK: memoryjs.node se generó correctamente"
+          } else {
+            Write-Error "FALLO: memoryjs.node NO se generó"
+            exit 1
+          }
 
       - name: Compilar el instalador (.exe)
         run: npm run dist -- --publish=never
