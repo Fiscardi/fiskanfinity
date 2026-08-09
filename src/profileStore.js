@@ -71,7 +71,8 @@ function makeDefaultAction(n) {
     soundUrl: '',
     webhookUrl: '',
     webhookMethod: 'POST',
-    minecraftCommand: ''
+   minecraftCommand: '',
+    crashBandicootLives: 0
   };
 }
 
@@ -196,7 +197,8 @@ class ProfileStore {
       soundUrl: data.soundUrl || '',
       webhookUrl: data.webhookUrl || '',
       webhookMethod: data.webhookMethod || 'POST',
-      minecraftCommand: data.minecraftCommand || '',
+     minecraftCommand: data.minecraftCommand || '',
+      crashBandicootLives: data.crashBandicootLives || 0,
       gameId: data.gameId || null
     });
     profile.actions.push(action);
