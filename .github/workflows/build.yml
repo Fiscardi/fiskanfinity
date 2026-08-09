@@ -14,7 +14,7 @@ jobs:
       - name: Instalar Node.js (en el servidor de GitHub, no en tu PC)
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 20.11.1
 
       - name: Instalar dependencias
         run: npm install
