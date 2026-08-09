@@ -36,6 +36,9 @@
     "directories": {
       "output": "dist"
     },
+    "asarUnpack": [
+      "**/node_modules/memoryjs/**"
+    ],
     "win": { "target": "nsis", "requestedExecutionLevel": "requireAdministrator" },
     "mac": { "target": "dmg" },
     "linux": { "target": "AppImage" }
