@@ -31,7 +31,8 @@
       "renderer/**/*",
       "overlays/**/*",
       "assets/**/*",
-      "package.json"
+      "package.json",
+      "node_modules/**/*"
     ],
     "directories": {
       "output": "dist"
