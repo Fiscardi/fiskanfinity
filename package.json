@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@tiktool/live": "^2.12.1",
+    "memoryjs": "^3.5.1",
     "express": "^4.19.2",
     "rcon-client": "^4.2.5",
     "ws": "^8.18.0"
@@ -35,7 +36,7 @@
     "directories": {
       "output": "dist"
     },
-    "win": { "target": "nsis" },
+    "win": { "target": "nsis", "requestedExecutionLevel": "requireAdministrator" },
     "mac": { "target": "dmg" },
     "linux": { "target": "AppImage" }
   }
