@@ -520,13 +520,17 @@ function createServer({ userDataDir, port = 8420 }) {
     const template = templates.find(t => t.id === req.params.templateId);
     if (!template) return res.status(404).json({ error: 'Plantilla no encontrada' });
     try {
-      const createdActions = template.actions.map(a => store.createAction(req.params.id, a));
+      let game = gamesStore.getAll().find(g => g.name.toLowerCase() === template.name.toLowerCase());
+      if (!game) {
+        game = gamesStore.create({ name: template.name, description: template.description, imageUrl: template.imageUrl });
+      }
+      const createdActions = template.actions.map(a => store.createAction(req.params.id, { ...a, gameId: game.id }));
       template.events.forEach(e => {
         const action = createdActions[e.actionIndex];
-        store.createEvent(req.params.id, { ...e, actionId: action ? action.id : null });
+        store.createEvent(req.params.id, { ...e, actionId: action ? action.id : null, gameId: game.id });
       });
       if (req.params.id === store.data.activeProfileId) broadcastProfile();
-      res.json({ ok: true, actionsCreated: createdActions.length, eventsCreated: template.events.length });
+      res.json({ ok: true, gameId: game.id, actionsCreated: createdActions.length, eventsCreated: template.events.length });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

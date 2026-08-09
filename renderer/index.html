@@ -18,77 +18,53 @@
     </form>
   </header>
 
-  <aside class="sidebar">
-    <h2>Perfiles de acción</h2>
-    <div id="profileList"></div>
-    <button class="add-profile" id="addProfileBtn">+ Nuevo perfil</button>
+  <div class="profile-tabbar">
+    <div id="profileList" class="profile-tabs-row"></div>
+    <button class="add-profile-tab" id="addProfileBtn">+ Nuevo perfil</button>
     <div class="slot-count" id="slotCount"></div>
-  </aside>
+  </div>
 
-  <main class="main">
-    <div class="tabbar">
-      <button class="tab active" id="tabOverlays">Overlays</button>
-      <button class="tab" id="tabActions">Acciones y Eventos</button>
-      <button class="tab" id="tabGames">Juegos</button>
-    </div>
-    <div class="grid" id="cardsGrid"></div>
-    <div class="actions-view" id="actionsView" style="display:none">
-      <div class="av-col">
-        <div class="av-head">
-          <h3>Acciones</h3>
-          <button class="small primary" id="addActionBtn">+ Nueva acción</button>
-        </div>
-        <p class="av-hint">Una acción define qué se ve/escucha (texto, color, duración, sonido). Después la asignás a uno o más eventos. El webhook manda una señal a cualquier mod/script que la esté escuchando. El comando de Minecraft se manda directo por RCON (función oficial del juego) si conectaste un servidor en la pestaña "Juegos".</p>
-        <div id="actionsList" class="action-cards"></div>
-      </div>
-      <div class="av-col">
-        <div class="av-head">
-          <h3>Eventos</h3>
-          <button class="small primary" id="addEventBtn">+ Nuevo evento</button>
-        </div>
-        <p class="av-hint">Un evento define qué lo dispara (un regalo, likes, follow, sub) y qué acción ejecuta. Para el regalo, tocá el botón y elegí de la grilla.</p>
-        <table class="events-table" id="eventsTable">
-          <thead>
-            <tr><th></th><th>Trigger</th><th>Acción</th><th></th></tr>
-          </thead>
-          <tbody id="eventsBody"></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="games-view" id="gamesView" style="display:none">
-      <div class="mc-card">
-        <div class="card-head">
-          <span class="led" id="mcLed"></span>
-          <div class="card-title">Servidor de Minecraft (RCON)</div>
-          <span class="mc-status" id="mcStatusText">Desconectado</span>
-        </div>
-        <p class="av-hint">RCON es la función oficial de Minecraft (Java Edition) para mandarle comandos al servidor a distancia — no requiere ningún hack. Se activa en el <code>server.properties</code> del servidor (<code>enable-rcon=true</code>).</p>
-        <div class="mc-form">
-          <input type="text" id="mcHost" placeholder="IP o dominio del servidor" />
-          <input type="number" id="mcPort" placeholder="Puerto (25575)" value="25575" style="width:110px" />
-          <input type="password" id="mcPassword" placeholder="Contraseña RCON" />
-          <button class="primary" id="mcConnectBtn">Conectar</button>
-        </div>
-        <div class="mc-form" style="margin-top:8px;">
-          <input type="text" id="mcPlayerName" placeholder="Tu nombre de usuario en Minecraft (para las plantillas)" />
-          <button class="small" id="mcSavePlayerBtn">Guardar</button>
-        </div>
-      </div>
+  <div class="body-layout">
+    <aside class="games-sidebar">
+      <h2>Navegación</h2>
+      <button class="nav-item active" data-nav="overlays">🎛️ Overlays</button>
+      <button class="nav-item" data-nav="general">⚡ General</button>
+      <h2 style="margin-top:16px;">Juegos</h2>
+      <div id="gamesNavList"></div>
+      <button class="add-game-btn" id="addGameBtn">+ Nuevo juego</button>
+      <button class="small ghost" id="openTemplatesBtn" style="margin-top:10px;">📦 Plantillas y Minecraft</button>
+    </aside>
 
-      <div class="av-head" style="margin-top:20px;">
-        <h3>Plantillas listas para usar</h3>
+    <main class="main">
+      <div class="grid" id="cardsGrid"></div>
+      <div class="game-detail-view" id="gameDetailView" style="display:none">
+        <div id="gameMetaBox"></div>
+        <div class="actions-view" id="actionsView">
+          <div class="av-col">
+            <div class="av-head">
+              <h3>Acciones</h3>
+              <button class="small primary" id="addActionBtn">+ Nueva acción</button>
+            </div>
+            <p class="av-hint">Una acción define qué se ve/escucha (texto, color, duración, sonido). Después la asignás a uno o más eventos. El webhook manda una señal a cualquier mod/script que la esté escuchando. El comando de Minecraft se manda directo por RCON si conectaste un servidor (botón "Plantillas y Minecraft" en la barra lateral).</p>
+            <div id="actionsList" class="action-cards"></div>
+          </div>
+          <div class="av-col">
+            <div class="av-head">
+              <h3>Eventos</h3>
+              <button class="small primary" id="addEventBtn">+ Nuevo evento</button>
+            </div>
+            <p class="av-hint">Un evento define qué lo dispara (un regalo, likes, follow, sub) y qué acción ejecuta. Para el regalo, tocá el botón y elegí de la grilla.</p>
+            <table class="events-table" id="eventsTable">
+              <thead>
+                <tr><th></th><th>Trigger</th><th>Acción</th><th></th></tr>
+              </thead>
+              <tbody id="eventsBody"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
-      <p class="av-hint">Elegí un juego y aplicale la plantilla al perfil activo: te carga de una las Acciones y Eventos ya armados (después los podés editar como cualquier otro). Minecraft es la única 100% lista por ahora — el resto los vamos armando juntos, uno por uno, jugando en vivo.</p>
-      <div id="templatesList" class="game-cards"></div>
-
-      <div class="av-head" style="margin-top:20px;">
-        <h3>Tus juegos y mods</h3>
-        <button class="small primary" id="addGameBtn">+ Nuevo juego</button>
-      </div>
-      <p class="av-hint">Acá vas guardando, juego por juego, el link de descarga del mod/parche/tabla de Cheat Engine que le corresponda (y tus propias notas de cómo armarlo). Para las acciones que mandan comandos de Minecraft, no hace falta nada acá — se configuran directo en la pestaña "Acciones y Eventos".</p>
-      <div id="gamesList" class="game-cards"></div>
-    </div>
-  </main>
+    </main>
+  </div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -136,6 +112,38 @@
     <div class="card-actions">
       <button class="primary" id="saveSettingsBtn">Guardar</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="templatesModal" style="display:none">
+  <div class="modal-box" style="width:min(700px,92vw); max-height:85vh;">
+    <div class="modal-head">
+      <h3>Plantillas y conexión Minecraft</h3>
+      <button class="ghost small" id="closeTemplatesModal">✕</button>
+    </div>
+    <div class="mc-card">
+      <div class="card-head">
+        <span class="led" id="mcLed"></span>
+        <div class="card-title">Servidor de Minecraft (RCON)</div>
+        <span class="mc-status" id="mcStatusText">Desconectado</span>
+      </div>
+      <p class="av-hint">RCON es la función oficial de Minecraft (Java Edition) para mandarle comandos al servidor a distancia — no requiere ningún hack. Se activa en el <code>server.properties</code> del servidor (<code>enable-rcon=true</code>).</p>
+      <div class="mc-form">
+        <input type="text" id="mcHost" placeholder="IP o dominio del servidor" />
+        <input type="number" id="mcPort" placeholder="Puerto (25575)" value="25575" style="width:110px" />
+        <input type="password" id="mcPassword" placeholder="Contraseña RCON" />
+        <button class="primary" id="mcConnectBtn">Conectar</button>
+      </div>
+      <div class="mc-form" style="margin-top:8px;">
+        <input type="text" id="mcPlayerName" placeholder="Tu nombre de usuario en Minecraft (para las plantillas)" />
+        <button class="small" id="mcSavePlayerBtn">Guardar</button>
+      </div>
+    </div>
+    <div class="av-head" style="margin-top:16px;">
+      <h3>Plantillas listas para usar</h3>
+    </div>
+    <p class="av-hint">Aplicala al perfil activo: crea el juego (si no existe) y le carga de una las Acciones y Eventos ya armados.</p>
+    <div id="templatesList" class="game-cards"></div>
   </div>
 </div>
 

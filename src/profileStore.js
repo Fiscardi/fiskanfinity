@@ -196,7 +196,8 @@ class ProfileStore {
       soundUrl: data.soundUrl || '',
       webhookUrl: data.webhookUrl || '',
       webhookMethod: data.webhookMethod || 'POST',
-      minecraftCommand: data.minecraftCommand || ''
+      minecraftCommand: data.minecraftCommand || '',
+      gameId: data.gameId || null
     });
     profile.actions.push(action);
     this.persist();
@@ -233,7 +234,8 @@ class ProfileStore {
       giftName: data.giftName || '',
       minCoins: data.minCoins || 1,
       minLikes: data.minLikes || 100,
-      actionId: data.actionId || null
+      actionId: data.actionId || null,
+      gameId: data.gameId || null
     };
     profile.events.push(event);
     this.persist();

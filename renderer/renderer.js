@@ -439,35 +439,46 @@ function logIncoming(msg) {
   }
 }
 
-// ---------- Pestañas ----------
-document.getElementById('tabOverlays').addEventListener('click', () => switchTab('overlays'));
-document.getElementById('tabActions').addEventListener('click', () => switchTab('actions'));
-document.getElementById('tabGames').addEventListener('click', () => switchTab('games'));
-function switchTab(tab) {
-  document.getElementById('tabOverlays').classList.toggle('active', tab === 'overlays');
-  document.getElementById('tabActions').classList.toggle('active', tab === 'actions');
-  document.getElementById('tabGames').classList.toggle('active', tab === 'games');
-  document.getElementById('cardsGrid').style.display = tab === 'overlays' ? 'grid' : 'none';
-  document.getElementById('actionsView').style.display = tab === 'actions' ? 'grid' : 'none';
-  document.getElementById('gamesView').style.display = tab === 'games' ? 'block' : 'none';
-  if (tab === 'games') { loadGames(); loadMcConfig(); loadTemplates(); }
+// ---------- Navegación (Overlays / General / cada juego) ----------
+let currentNav = 'overlays'; // 'overlays' | 'general' | id de un juego
+
+document.querySelectorAll('.nav-item[data-nav]').forEach(btn => {
+  btn.addEventListener('click', () => switchNav(btn.dataset.nav));
+});
+
+function switchNav(nav) {
+  currentNav = nav;
+  document.querySelectorAll('.nav-item[data-nav], .nav-item[data-game-nav]').forEach(btn => {
+    const key = btn.dataset.nav || btn.dataset.gameNav;
+    btn.classList.toggle('active', key === nav);
+  });
+  document.getElementById('cardsGrid').style.display = nav === 'overlays' ? 'grid' : 'none';
+  document.getElementById('gameDetailView').style.display = nav === 'overlays' ? 'none' : 'block';
+  if (nav !== 'overlays') renderActionsAndEvents();
+}
+
+function currentGameFilterId() {
+  return currentNav === 'general' ? null : currentNav;
 }
 
 // ---------- Acciones (librería) ----------
 function renderActionsAndEvents() {
   const profile = activeProfile();
   if (!profile) return;
+  renderGameMetaBox();
   renderActionsList(profile);
   renderEventsTable(profile);
 }
 
 function renderActionsList(profile) {
   const list = document.getElementById('actionsList');
-  if (profile.actions.length === 0) {
-    list.innerHTML = '<p class="av-hint">Todavía no creaste ninguna acción.</p>';
+  const gameId = currentGameFilterId();
+  const actions = profile.actions.filter(a => (a.gameId || null) === gameId);
+  if (actions.length === 0) {
+    list.innerHTML = '<p class="av-hint">Todavía no creaste ninguna acción acá.</p>';
     return;
   }
-  list.innerHTML = profile.actions.map(a => `
+  list.innerHTML = actions.map(a => `
     <div class="action-card" data-action-id="${a.id}">
       <div class="ac-top">
         <input class="ac-name" type="text" value="${escapeHtml(a.name)}" data-a-field="name" />
@@ -507,7 +518,7 @@ function renderActionsList(profile) {
   list.querySelectorAll('[data-a-test]').forEach(btn => {
     btn.addEventListener('click', async () => {
       const action = profile.actions.find(a => a.id === btn.dataset.aTest);
-      await api(`/api/profiles/${profile.id}/events`, { method: 'POST', body: JSON.stringify({ triggerType: 'follow', actionId: action.id }) })
+      await api(`/api/profiles/${profile.id}/events`, { method: 'POST', body: JSON.stringify({ triggerType: 'follow', actionId: action.id, gameId: action.gameId || null }) })
         .then(async ev => {
           await api(`/api/profiles/${profile.id}/events/${ev.id}/test`, { method: 'POST' });
           await api(`/api/profiles/${profile.id}/events/${ev.id}`, { method: 'DELETE' });
@@ -532,7 +543,7 @@ function saveAction(profileId, actionId, patch) {
 
 document.getElementById('addActionBtn').addEventListener('click', async () => {
   const profile = activeProfile();
-  await api(`/api/profiles/${profile.id}/actions`, { method: 'POST', body: JSON.stringify({}) });
+  await api(`/api/profiles/${profile.id}/actions`, { method: 'POST', body: JSON.stringify({ gameId: currentGameFilterId() }) });
   await loadProfiles();
   renderActionsAndEvents();
 });
@@ -542,11 +553,14 @@ const triggerLabels = { gift: 'Regalo', like: 'Likes', follow: 'Follow', subscri
 
 function renderEventsTable(profile) {
   const body = document.getElementById('eventsBody');
-  if (profile.events.length === 0) {
-    body.innerHTML = `<tr><td colspan="4" class="av-hint">Todavía no creaste ningún evento.</td></tr>`;
+  const gameId = currentGameFilterId();
+  const events = profile.events.filter(ev => (ev.gameId || null) === gameId);
+  const actionsInGame = profile.actions.filter(a => (a.gameId || null) === gameId);
+  if (events.length === 0) {
+    body.innerHTML = `<tr><td colspan="4" class="av-hint">Todavía no creaste ningún evento acá.</td></tr>`;
     return;
   }
-  body.innerHTML = profile.events.map(ev => `
+  body.innerHTML = events.map(ev => `
     <tr data-event-id="${ev.id}">
       <td><button class="switch small ${ev.enabled ? 'on' : ''}" data-e-toggle="1" title="Activo"></button></td>
       <td>
@@ -566,7 +580,7 @@ function renderEventsTable(profile) {
       <td>
         <select data-e-field="actionId">
           <option value="">— sin acción —</option>
-          ${profile.actions.map(a => `<option value="${a.id}" ${ev.actionId === a.id ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('')}
+          ${actionsInGame.map(a => `<option value="${a.id}" ${ev.actionId === a.id ? 'selected' : ''}>${escapeHtml(a.name)}</option>`).join('')}
         </select>
       </td>
       <td>
@@ -624,7 +638,7 @@ async function saveEvent(profileId, eventId, patch, needsRerender) {
 
 document.getElementById('addEventBtn').addEventListener('click', async () => {
   const profile = activeProfile();
-  await api(`/api/profiles/${profile.id}/events`, { method: 'POST', body: JSON.stringify({ triggerType: 'gift' }) });
+  await api(`/api/profiles/${profile.id}/events`, { method: 'POST', body: JSON.stringify({ triggerType: 'gift', gameId: currentGameFilterId() }) });
   await loadProfiles();
   renderActionsAndEvents();
 });
@@ -760,6 +774,19 @@ document.getElementById('saveSettingsBtn').addEventListener('click', async () =>
   } catch (err) { toast(err.message); }
 });
 
+// ---------- Modal de Plantillas y Minecraft ----------
+document.getElementById('openTemplatesBtn').addEventListener('click', () => {
+  document.getElementById('templatesModal').style.display = 'flex';
+  loadMcConfig();
+  loadTemplates();
+});
+document.getElementById('closeTemplatesModal').addEventListener('click', () => {
+  document.getElementById('templatesModal').style.display = 'none';
+});
+document.getElementById('templatesModal').addEventListener('click', e => {
+  if (e.target.id === 'templatesModal') document.getElementById('templatesModal').style.display = 'none';
+});
+
 // ---------- Minecraft (RCON) ----------
 async function loadMcConfig() {
   try {
@@ -849,74 +876,94 @@ function renderTemplates(list) {
       if (!profile) return;
       if (!confirm(`Esto agrega ${btn.textContent.match(/\d+/)[0]} acciones nuevas y sus eventos al perfil "${profile.name}". ¿Seguimos?`)) return;
       try {
-        await api(`/api/profiles/${profile.id}/apply-template/${btn.dataset.applyTemplate}`, { method: 'POST' });
-        toast('Plantilla aplicada — mirala en la pestaña Acciones y Eventos');
+        const result = await api(`/api/profiles/${profile.id}/apply-template/${btn.dataset.applyTemplate}`, { method: 'POST' });
+        toast('Plantilla aplicada');
+        document.getElementById('templatesModal').style.display = 'none';
         await loadProfiles();
+        await loadGames();
+        switchNav(result.gameId);
       } catch (err) { toast(err.message); }
     });
   });
 }
 
-// ---------- Juegos y mods ----------
+// ---------- Juegos (barra lateral) ----------
 let gamesList = [];
 
 async function loadGames() {
   try {
     gamesList = await api('/api/games');
-    renderGames();
-  } catch (err) { toast(err.message); }
+    renderGamesNav();
+  } catch (err) { /* noop */ }
 }
 
-function renderGames() {
-  const container = document.getElementById('gamesList');
-  if (gamesList.length === 0) {
-    container.innerHTML = '<p class="av-hint">Todavía no agregaste ningún juego.</p>';
-    return;
-  }
+function renderGamesNav() {
+  const container = document.getElementById('gamesNavList');
   container.innerHTML = gamesList.map(g => `
-    <div class="game-card" data-game-id="${g.id}">
-      ${g.imageUrl ? `<img class="game-thumb" src="${escapeHtml(g.imageUrl)}" alt="" />` : '<div class="game-thumb game-thumb-empty">🎮</div>'}
-      <div class="game-body">
-        <div class="ac-top">
-          <input class="ac-name" type="text" value="${escapeHtml(g.name)}" data-g-field="name" />
-          <button class="small ghost danger" data-g-remove="${g.id}">✕</button>
-        </div>
-        <div class="field-row"><span>Imagen (URL, opcional)</span><input type="text" value="${escapeHtml(g.imageUrl || '')}" data-g-field="imageUrl" placeholder="https://..." /></div>
-        <div class="field-row"><span>Descripción</span><input type="text" value="${escapeHtml(g.description || '')}" data-g-field="description" placeholder="Ej: Metal Slug 6 - vidas y créditos" /></div>
-        <div class="field-row"><span>Link de descarga</span><input type="text" value="${escapeHtml(g.downloadUrl || '')}" data-g-field="downloadUrl" placeholder="https://..." /></div>
-        <div class="field-row"><span>Notas / instrucciones</span><input type="text" value="${escapeHtml(g.instructions || '')}" data-g-field="instructions" placeholder="Ej: hotkey F1 = +1 vida" /></div>
-        ${g.downloadUrl ? `<div class="card-actions"><a href="${escapeHtml(g.downloadUrl)}" target="_blank" rel="noopener"><button class="small primary">Descargar</button></a></div>` : ''}
-      </div>
-    </div>`).join('');
+    <button class="nav-item" data-game-nav="${g.id}">
+      <span class="nav-item-name">🎮 ${escapeHtml(g.name)}</span>
+      <span class="nav-item-remove" data-g-remove="${g.id}">✕</span>
+    </button>`).join('');
 
-  container.querySelectorAll('[data-g-field]').forEach(el => {
-    const card = el.closest('.game-card');
-    const gameId = card.dataset.gameId;
-    const field = el.dataset.gField;
-    el.addEventListener('change', () => saveGame(gameId, { [field]: el.value }));
+  container.querySelectorAll('[data-game-nav]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      if (e.target.dataset.gRemove) return; // el click de borrar no navega
+      switchNav(btn.dataset.gameNav);
+    });
   });
-  container.querySelectorAll('[data-g-remove]').forEach(btn => {
-    btn.addEventListener('click', async () => {
-      if (!confirm('¿Eliminar este juego de la lista?')) return;
-      await api(`/api/games/${btn.dataset.gRemove}`, { method: 'DELETE' });
+  container.querySelectorAll('[data-g-remove]').forEach(el => {
+    el.addEventListener('click', async e => {
+      e.stopPropagation();
+      if (!confirm('¿Eliminar este juego? Sus acciones y eventos quedan sin juego asignado, en "General".')) return;
+      await api(`/api/games/${el.dataset.gRemove}`, { method: 'DELETE' });
+      if (currentNav === el.dataset.gRemove) switchNav('general');
       await loadGames();
     });
   });
 }
 
+function renderGameMetaBox() {
+  const box = document.getElementById('gameMetaBox');
+  if (currentNav === 'general') {
+    box.innerHTML = `<p class="av-hint" style="margin-bottom:10px;">Acciones y eventos generales, sin ligar a ningún juego puntual.</p>`;
+    return;
+  }
+  const game = gamesList.find(g => g.id === currentNav);
+  if (!game) { box.innerHTML = ''; return; }
+  box.innerHTML = `
+    <div class="game-card" style="margin-bottom:16px; flex-direction:row; align-items:stretch;">
+      ${game.imageUrl ? `<img class="game-thumb" src="${escapeHtml(game.imageUrl)}" alt="" style="width:120px; height:auto;" />` : '<div class="game-thumb game-thumb-empty" style="width:120px;">🎮</div>'}
+      <div class="game-body" style="flex:1;">
+        <div class="field-row"><span>Nombre</span><input type="text" value="${escapeHtml(game.name)}" data-gm-field="name" /></div>
+        <div class="field-row"><span>Imagen (URL)</span><input type="text" value="${escapeHtml(game.imageUrl || '')}" data-gm-field="imageUrl" placeholder="https://..." /></div>
+        <div class="field-row"><span>Link de descarga (mod/parche)</span><input type="text" value="${escapeHtml(game.downloadUrl || '')}" data-gm-field="downloadUrl" placeholder="https://..." /></div>
+        <div class="field-row"><span>Notas</span><input type="text" value="${escapeHtml(game.instructions || '')}" data-gm-field="instructions" /></div>
+        ${game.downloadUrl ? `<div class="card-actions"><a href="${escapeHtml(game.downloadUrl)}" target="_blank" rel="noopener"><button class="small primary">Descargar</button></a></div>` : ''}
+      </div>
+    </div>`;
+
+  box.querySelectorAll('[data-gm-field]').forEach(el => {
+    el.addEventListener('change', () => saveGame(game.id, { [el.dataset.gmField]: el.value }));
+  });
+}
+
 let gameSaveTimers = {};
 function saveGame(gameId, patch) {
+  const game = gamesList.find(g => g.id === gameId);
+  if (game) Object.assign(game, patch);
   clearTimeout(gameSaveTimers[gameId]);
   gameSaveTimers[gameId] = setTimeout(async () => {
     try {
       await api(`/api/games/${gameId}`, { method: 'PUT', body: JSON.stringify(patch) });
+      renderGamesNav();
     } catch (err) { toast(err.message); }
   }, 400);
 }
 
 document.getElementById('addGameBtn').addEventListener('click', async () => {
-  await api('/api/games', { method: 'POST', body: JSON.stringify({ name: 'Juego nuevo' }) });
+  const game = await api('/api/games', { method: 'POST', body: JSON.stringify({ name: 'Juego nuevo' }) });
   await loadGames();
+  switchNav(game.id);
 });
 
 (async function init() {
@@ -924,5 +971,6 @@ document.getElementById('addGameBtn').addEventListener('click', async () => {
   const status = await api('/api/status');
   setOnAir(status);
   await loadGifts();
+  await loadGames();
   connectWs();
 })();
