@@ -1,26 +1,27 @@
 // crashLivesMemory.js
-// Módulo para leer/escribir las vidas de Crash Bandicoot N. Sane Trilogy
-// usando la cadena de punteros obtenida con Cheat Engine.
+// Módulo para leer/escribir las vidas de Crash Bandicoot N. Sane Trilogy vía memoryjs.
 //
-// Requiere: npm install memoryjs --save
-// IMPORTANTE: FiskLive (Electron) debe ejecutarse como Administrador,
-// igual que necesitabas Cheat Engine en modo Admin para leer el proceso del juego.
-
-const memoryjs = require('memoryjs');
+// IMPORTANTE: 'memoryjs' se carga de forma perezosa (recién cuando se necesita),
+// no apenas arranca la app. Así, si el módulo nativo falla por algún motivo de
+// empaquetado, el resto de FiskLive sigue funcionando normal y solo esta
+// función en particular tira error en consola.
 
 const PROCESS_NAME = 'CrashBandicootNSaneTrilogy.exe';
 
-// Cadena de punteros obtenida en Cheat Engine:
-// exe+BASE_OFFSET -> +OFFSETS[0] -> +OFFSETS[1] -> ... -> +FINAL_OFFSET (valor final)
 const BASE_OFFSET = 0x01A69698;
-const OFFSETS = [0xA0, 0x40, 0x18, 0x40, 0x10, 0x28]; // cada uno se dereferencia
-const FINAL_OFFSET = 0x420; // offset final, NO se dereferencia (ahí está el int de vidas)
+const OFFSETS = [0xA0, 0x40, 0x18, 0x40, 0x10, 0x28];
+const FINAL_OFFSET = 0x420;
 
-/**
- * Abre el proceso del juego y encuentra el módulo base del .exe.
- * Lanza error si el juego no está corriendo.
- */
+let _memoryjs = null;
+function getMemoryjs() {
+  if (!_memoryjs) {
+    _memoryjs = require('memoryjs');
+  }
+  return _memoryjs;
+}
+
 function openGameProcess() {
+  const memoryjs = getMemoryjs();
   let processObject;
   try {
     processObject = memoryjs.openProcess(PROCESS_NAME);
@@ -30,11 +31,8 @@ function openGameProcess() {
   return processObject;
 }
 
-/**
- * Resuelve la cadena de punteros y devuelve la dirección final de memoria
- * donde vive el valor de vidas (int32).
- */
 function resolveLivesAddress(processObject) {
+  const memoryjs = getMemoryjs();
   const modules = memoryjs.getModules(processObject.th32ProcessID);
   const mainModule = modules.find((m) =>
     m.szExePath.toLowerCase().endsWith('crashbandicootnsanetrilogy.exe')
@@ -44,11 +42,9 @@ function resolveLivesAddress(processObject) {
     throw new Error('No se encontró el módulo principal del ejecutable.');
   }
 
-  // Primer paso: base del módulo + offset base, dereferenciado
   let address = mainModule.modBaseAddr + BASE_OFFSET;
   address = memoryjs.readMemory(processObject.handle, address, memoryjs.UINT64);
 
-  // Pasos intermedios: cada uno se dereferencia
   for (const offset of OFFSETS) {
     address = memoryjs.readMemory(
       processObject.handle,
@@ -57,14 +53,11 @@ function resolveLivesAddress(processObject) {
     );
   }
 
-  // Offset final: NO se dereferencia, es la dirección de los datos
   return Number(address) + FINAL_OFFSET;
 }
 
-/**
- * Lee el valor actual de vidas.
- */
 function getLives() {
+  const memoryjs = getMemoryjs();
   const processObject = openGameProcess();
   try {
     const livesAddress = resolveLivesAddress(processObject);
@@ -74,10 +67,8 @@ function getLives() {
   }
 }
 
-/**
- * Escribe un valor exacto de vidas.
- */
 function setLives(value) {
+  const memoryjs = getMemoryjs();
   const processObject = openGameProcess();
   try {
     const livesAddress = resolveLivesAddress(processObject);
@@ -87,11 +78,8 @@ function setLives(value) {
   }
 }
 
-/**
- * Suma (o resta, con número negativo) vidas al valor actual.
- * Ideal para engancharlo directo a un evento de regalo de TikTok.
- */
 function addLives(amount) {
+  const memoryjs = getMemoryjs();
   const processObject = openGameProcess();
   try {
     const livesAddress = resolveLivesAddress(processObject);
