@@ -72,7 +72,9 @@ function makeDefaultAction(n) {
     webhookUrl: '',
     webhookMethod: 'POST',
    minecraftCommand: '',
-    crashBandicootLives: 0
+    crashBandicootLives: 0,
+    crashBandicootMasks: ''
+  };
   };
 }
 
