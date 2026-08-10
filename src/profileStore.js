@@ -75,7 +75,6 @@ function makeDefaultAction(n) {
     crashBandicootLives: 0,
     crashBandicootMasks: ''
   };
-  };
 }
 
 class ProfileStore {
