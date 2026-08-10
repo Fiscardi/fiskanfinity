@@ -489,6 +489,7 @@ function renderActionsList(profile) {
       <div class="field-row"><span>Webhook hacia el juego/mod (opcional)</span><input type="text" value="${escapeHtml(a.webhookUrl || '')}" data-a-field="webhookUrl" placeholder="http://localhost:PUERTO/..." /></div>
       <div class="field-row"><span>Comando de Minecraft (RCON, opcional)</span><input type="text" value="${escapeHtml(a.minecraftCommand || '')}" data-a-field="minecraftCommand" placeholder="give {user} diamond 5" /></div>
       <div class="field-row"><span>Vidas Crash Bandicoot (número, negativo = quita, opcional)</span><input type="number" step="1" value="${a.crashBandicootLives || 0}" data-a-field="crashBandicootLives" placeholder="1 o -1" /></div>
+      <div class="field-row"><span>Máscaras Aku Aku Crash (0 a 3, valor exacto, opcional)</span><input type="number" step="1" min="0" max="3" value="${a.crashBandicootMasks !== undefined ? a.crashBandicootMasks : ''}" data-a-field="crashBandicootMasks" placeholder="0, 1, 2 o 3" /></div>
       <div class="ac-row2">
         <select data-a-field="webhookMethod" title="Método del webhook" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px;">
           <option value="POST" ${(a.webhookMethod || 'POST') === 'POST' ? 'selected' : ''}>POST</option>
