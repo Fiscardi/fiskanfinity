@@ -12,6 +12,7 @@ const { GamesStore } = require('./gamesStore');
 const { templates } = require('./templates');
 const DEFAULT_GIFTS = require('./defaultGifts');
 const crashLives = require('./crashLivesMemory');
+const crashMasks = require('./crashMasksMemory');
 
 function createServer({ userDataDir, port = 8420 }) {
   const app = express();
