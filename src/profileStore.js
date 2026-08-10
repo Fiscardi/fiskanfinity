@@ -201,6 +201,7 @@ class ProfileStore {
       webhookMethod: data.webhookMethod || 'POST',
      minecraftCommand: data.minecraftCommand || '',
       crashBandicootLives: data.crashBandicootLives || 0,
+      crashBandicootMasks: data.crashBandicootMasks !== undefined ? data.crashBandicootMasks : '',
       gameId: data.gameId || null
     });
     profile.actions.push(action);
