@@ -219,6 +219,18 @@ function createServer({ userDataDir, port = 8420 }) {
         } catch (logErr) { /* noop */ }
       }
     }
+    // Máscaras de Aku Aku de Crash Bandicoot (0 a 3, valor exacto)
+    if (action.crashBandicootMasks !== undefined && action.crashBandicootMasks !== '') {
+      try {
+        crashMasks.setMasks(Number(action.crashBandicootMasks));
+      } catch (err) {
+        console.error('No se pudo escribir las máscaras de Crash Bandicoot (¿está el juego abierto?):', err.message);
+        try {
+          const logPath = path.join(os.homedir(), 'Desktop', 'fisklive-crash-debug.log');
+          fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${err.stack || err.message}\n`);
+        } catch (logErr) { /* noop */ }
+      }
+    }
 
        // Comando de Minecraft por RCON (oficial, no requiere hackear nada)
        if (action.minecraftCommand) {
