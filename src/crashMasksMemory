@@ -1,0 +1,86 @@
+// crashMasksMemory.js
+// Módulo para leer/escribir el contador de máscaras de Aku Aku (0 a 3)
+// de Crash Bandicoot N. Sane Trilogy vía memoryjs.
+//
+// 'memoryjs' se carga de forma perezosa: si falla, no crashea toda la app,
+// solo esta función en particular.
+
+const PROCESS_NAME = 'CrashBandicootNSaneTrilogy.exe';
+
+const BASE_OFFSET = 0x01A69B98;
+const OFFSETS = [0x78, 0x48, 0x40, 0x70];
+const FINAL_OFFSET = 0x38;
+
+let _memoryjs = null;
+function getMemoryjs() {
+  if (!_memoryjs) {
+    _memoryjs = require('memoryjs');
+  }
+  return _memoryjs;
+}
+
+function openGameProcess() {
+  const memoryjs = getMemoryjs();
+  let processObject;
+  try {
+    processObject = memoryjs.openProcess(PROCESS_NAME);
+  } catch (err) {
+    throw new Error(`No se pudo abrir ${PROCESS_NAME}. ¿El juego está corriendo?`);
+  }
+  return processObject;
+}
+
+function resolveMasksAddress(processObject) {
+  const memoryjs = getMemoryjs();
+  const modules = memoryjs.getModules(processObject.th32ProcessID);
+  const mainModule = modules.find((m) =>
+    m.szExePath.toLowerCase().endsWith('crashbandicootnsanetrilogy.exe')
+  );
+
+  if (!mainModule) {
+    throw new Error('No se encontró el módulo principal del ejecutable.');
+  }
+
+  let address = mainModule.modBaseAddr + BASE_OFFSET;
+  address = memoryjs.readMemory(processObject.handle, address, memoryjs.UINT64);
+
+  for (const offset of OFFSETS) {
+    address = memoryjs.readMemory(
+      processObject.handle,
+      Number(address) + offset,
+      memoryjs.UINT64
+    );
+  }
+
+  return Number(address) + FINAL_OFFSET;
+}
+
+function getMasks() {
+  const memoryjs = getMemoryjs();
+  const processObject = openGameProcess();
+  try {
+    const masksAddress = resolveMasksAddress(processObject);
+    return memoryjs.readMemory(processObject.handle, masksAddress, memoryjs.INT32);
+  } finally {
+    memoryjs.closeProcess(processObject.handle);
+  }
+}
+
+// Setea un valor EXACTO de máscaras (0 a 3). No suma/resta, fija el número.
+function setMasks(value) {
+  const memoryjs = getMemoryjs();
+  const processObject = openGameProcess();
+  try {
+    const clamped = Math.max(0, Math.min(3, value));
+    const masksAddress = resolveMasksAddress(processObject);
+    memoryjs.writeMemory(processObject.handle, masksAddress, clamped, memoryjs.INT32);
+    return clamped;
+  } finally {
+    memoryjs.closeProcess(processObject.handle);
+  }
+}
+
+module.exports = {
+  getMasks,
+  setMasks,
+};
