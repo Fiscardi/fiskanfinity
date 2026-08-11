@@ -98,42 +98,40 @@ function createServer({ userDataDir, port = 8420 }) {
   // Catálogo de regalos para el selector de eventos: arranca con el que haya
   // quedado guardado de una conexión anterior, o si nunca conectaste, con el
   // básico precargado (aproximado, sin imágenes).
-  const cachedGifts = loadCachedGifts();
-  let availableGifts = cachedGifts.list;
-  let giftsSource = cachedGifts.source;
-
-  function loadCachedGifts() {
-    try {
-      if (fs.existsSync(giftsCacheFile)) {
-        const cached = JSON.parse(fs.readFileSync(giftsCacheFile, 'utf-8'));
-        if (Array.isArray(cached) && cached.length > 0) {
-          return { list: cached, source: 'account' };
-        }function loadCachedGifts() {
+ function loadCachedGifts() {
   try {
     if (fs.existsSync(giftsCacheFile)) {
-      const cached = JSON.parse(fs.readFileSync(giftsCacheFile, 'utf-8'));
+      const cached = JSON.parse(
+        fs.readFileSync(giftsCacheFile, 'utf-8')
+      );
+
       if (Array.isArray(cached) && cached.length > 0) {
-        return { list: cached, source: 'account' };
+        return {
+          list: cached,
+          source: 'account'
+        };
       }
     }
-  } catch (err) { /* si falla, usamos el básico */ }
+  } catch (err) {
+    // si falla usamos el catálogo básico
+  }
 
-  const imageGifts = loa*GiftsFromImages();
+  const imageGifts = loadGiftsFromImages();
 
-  const merged*= [...DEFAULT_GIFTS];
+  const merged = [...DEFAULT_GIFTS];
 
-  imageGift*.forEach(imgGift => {
-    const ex*sts = merged.some(
-      g => g.na*e.toLowerCase() === imgGift.name.t*LowerCase()
+  imageGifts.forEach(imgGift => {
+    const exists = merged.some(
+      g => g.name.toLowerCase() === imgGift.name.toLowerCase()
     );
 
-    if (!exist*) {
+    if (!exists) {
       merged.push(imgGift);
-  * }
+    }
   });
 
   return {
-    list: mer*ed,
+    list: merged,
     source: 'default'
   };
 }
