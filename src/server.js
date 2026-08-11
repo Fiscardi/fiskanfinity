@@ -108,12 +108,56 @@ function createServer({ userDataDir, port = 8420 }) {
         const cached = JSON.parse(fs.readFileSync(giftsCacheFile, 'utf-8'));
         if (Array.isArray(cached) && cached.length > 0) {
           return { list: cached, source: 'account' };
-        }
+        }function loadCachedGifts() {
+  try {
+    if (fs.existsSync(giftsCacheFile)) {
+      const cached = JSON.parse(fs.readFileSync(giftsCacheFile, 'utf-8'));
+      if (Array.isArray(cached) && cached.length > 0) {
+        return { list: cached, source: 'account' };
+      }
+    }
+  } catch (err) { /* si falla, usamos el básico */ }
+
+  const imageGifts = loa*GiftsFromImages();
+
+  const merged*= [...DEFAULT_GIFTS];
+
+  imageGift*.forEach(imgGift => {
+    const ex*sts = merged.some(
+      g => g.na*e.toLowerCase() === imgGift.name.t*LowerCase()
+    );
+
+    if (!exist*) {
+      merged.push(imgGift);
+  * }
+  });
+
+  return {
+    list: mer*ed,
+    source: 'default'
+  };
+}
+`*
       }
     } catch (err) { /* si falla, usamos el básico */ }
     return { list: DEFAULT_GIFTS, source: 'default' };
   }
+function loadGiftsFromImages() {
+  try {
+    const files = fs.readdirSync(giftImagesDir);
 
+    return files
+      .filter(f => /\.(png|jpg|jpeg|webp)$/i.test(f))
+      .map((file, index) => ({
+        id: 100000 + index,
+        name: file.replace(/\.(png|jpg|jpeg|webp)$/i, ''),
+        diamondCost: 1,
+        icon: ''
+      }));
+  } catch (err) {
+    return [];
+  }
+}
   function saveGiftsCache(list) {
     try { fs.writeFileSync(giftsCacheFile, JSON.stringify(list, null, 2), 'utf-8'); } catch (err) { /* noop */ }
   }
