@@ -152,6 +152,11 @@ function loadGiftsFromImages() {
     return [];
   }
 }
+  
+  const cachedGifts = loadCachedGifts();
+let availableGifts = cachedGifts.list;
+let giftsSource = cachedGifts.source;
+  
   function saveGiftsCache(list) {
     try { fs.writeFileSync(giftsCacheFile, JSON.stringify(list, null, 2), 'utf-8'); } catch (err) { /* noop */ }
   }
