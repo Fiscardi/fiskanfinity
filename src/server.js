@@ -135,11 +135,7 @@ function createServer({ userDataDir, port = 8420 }) {
     source: 'default'
   };
 }
-`*
-      }
-    } catch (err) { /* si falla, usamos el básico */ }
-    return { list: DEFAULT_GIFTS, source: 'default' };
-  }
+
 function loadGiftsFromImages() {
   try {
     const files = fs.readdirSync(giftImagesDir);
