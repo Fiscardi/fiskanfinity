@@ -126,6 +126,7 @@ function createServer({ userDataDir, port = 8420 }) {
     source: 'account'
         };
       }
+    }
   } catch (err) {
     // si falla usamos el catálogo básico
   }
