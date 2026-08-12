@@ -106,12 +106,26 @@ function createServer({ userDataDir, port = 8420 }) {
       );
 
       if (Array.isArray(cached) && cached.length > 0) {
-        return {
-          list: cached,
-          source: 'account'
+
+  const imageGifts = loadGiftsFromImages();
+
+  const merged = [...cached];
+
+  imageGifts.forEach(imgGift => {
+    const exists = merged.some(
+      g => g.name.toLowerCase() === imgGift.name.toLowerCase()
+    );
+
+    if (!exists) {
+      merged.push(imgGift);
+    }
+  });
+
+  return {
+    list: merged,
+    source: 'account'
         };
       }
-    }
   } catch (err) {
     // si falla usamos el catálogo básico
   }
