@@ -14,6 +14,7 @@ const DEFAULT_GIFTS = require('./defaultGifts');
 const crashLives = require('./crashLivesMemory');
 const crashMasks = require('./crashMasksMemory');
 const metalSlugBombs = require('./metalSlugBombsMemory');
+const metalSlugLives = require('./metalSlugLivesMemory');
 
 function createServer({ userDataDir, port = 8420 }) {
   const app = express();
@@ -296,6 +297,18 @@ let giftsSource = cachedGifts.source;
         metalSlugBombs.addBombs(Number(action.metalSlugBombs));
       } catch (err) {
         console.error('No se pudo escribir en la memoria de Metal Slug (¿está FBNeo abierto?):', err.message);
+        try {
+          const logPath = path.join(os.homedir(), 'Desktop', 'fisklive-crash-debug.log');
+          fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${err.stack || err.message}\n`);
+        } catch (logErr) { /* noop */ }
+      }
+    }
+    // Vidas (1UP) de Metal Slug / Super Vehicle-001 (FinalBurn Neo)
+    if (action.metalSlugLives) {
+      try {
+        metalSlugLives.addLives(Number(action.metalSlugLives));
+      } catch (err) {
+        console.error('No se pudo escribir las vidas de Metal Slug (¿está FBNeo abierto?):', err.message);
         try {
           const logPath = path.join(os.homedir(), 'Desktop', 'fisklive-crash-debug.log');
           fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${err.stack || err.message}\n`);
