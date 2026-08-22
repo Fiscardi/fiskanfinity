@@ -13,6 +13,8 @@ const { templates } = require('./templates');
 const DEFAULT_GIFTS = require('./defaultGifts');
 const crashLives = require('./crashLivesMemory');
 const crashMasks = require('./crashMasksMemory');
+const metalSlugBombs = require('./metalSlugBombsMemory');
+const metalSlugLives = require('./metalSlugLivesMemory');
 
 function createServer({ userDataDir, port = 8420 }) {
   const app = express();
@@ -106,9 +108,24 @@ function createServer({ userDataDir, port = 8420 }) {
       );
 
       if (Array.isArray(cached) && cached.length > 0) {
-        return {
-          list: cached,
-          source: 'account'
+
+  const imageGifts = loadGiftsFromImages();
+
+  const merged = [...cached];
+
+  imageGifts.forEach(imgGift => {
+    const exists = merged.some(
+      g => g.name.toLowerCase() === imgGift.name.toLowerCase()
+    );
+
+    if (!exists) {
+      merged.push(imgGift);
+    }
+  });
+
+  return {
+    list: merged,
+    source: 'account'
         };
       }
     }
@@ -152,6 +169,11 @@ function loadGiftsFromImages() {
     return [];
   }
 }
+  
+  const cachedGifts = loadCachedGifts();
+let availableGifts = cachedGifts.list;
+let giftsSource = cachedGifts.source;
+  
   function saveGiftsCache(list) {
     try { fs.writeFileSync(giftsCacheFile, JSON.stringify(list, null, 2), 'utf-8'); } catch (err) { /* noop */ }
   }
@@ -263,6 +285,30 @@ function loadGiftsFromImages() {
         crashMasks.setMasks(Number(action.crashBandicootMasks));
       } catch (err) {
         console.error('No se pudo escribir las máscaras de Crash Bandicoot (¿está el juego abierto?):', err.message);
+        try {
+          const logPath = path.join(os.homedir(), 'Desktop', 'fisklive-crash-debug.log');
+          fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${err.stack || err.message}\n`);
+        } catch (logErr) { /* noop */ }
+      }
+    }
+    // Bombas de Metal Slug / Super Vehicle-001 (FinalBurn Neo)
+    if (action.metalSlugBombs) {
+      try {
+        metalSlugBombs.addBombs(Number(action.metalSlugBombs));
+      } catch (err) {
+        console.error('No se pudo escribir en la memoria de Metal Slug (¿está FBNeo abierto?):', err.message);
+        try {
+          const logPath = path.join(os.homedir(), 'Desktop', 'fisklive-crash-debug.log');
+          fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${err.stack || err.message}\n`);
+        } catch (logErr) { /* noop */ }
+      }
+    }
+    // Vidas (1UP) de Metal Slug / Super Vehicle-001 (FinalBurn Neo)
+    if (action.metalSlugLives) {
+      try {
+        metalSlugLives.addLives(Number(action.metalSlugLives));
+      } catch (err) {
+        console.error('No se pudo escribir las vidas de Metal Slug (¿está FBNeo abierto?):', err.message);
         try {
           const logPath = path.join(os.homedir(), 'Desktop', 'fisklive-crash-debug.log');
           fs.appendFileSync(logPath, `[${new Date().toISOString()}] ${err.stack || err.message}\n`);
