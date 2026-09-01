@@ -10,9 +10,9 @@ const { gta } = require('./gtaConnector');
 // tu integracion de TikTok (@tiktool/live), y los valores de "coins" si
 // queres graduar la intensidad segun el valor del regalo.
 const GTA_GIFT_MAP = {
-  'Rosa': () => gta.giveWeapon('WEAPON_PISTOL'),
+  'Rose': () => gta.giveWeapon('WEAPON_PISTOL'),
   'Corazon': () => gta.setHealth(100),
-  'Universo': () => gta.spawnVehicle('adder'),
+  'Llamas a Fiska': () => gta.spawnVehicle('adder'),
   'Leon': () => gta.spawnChaos(6),
   'Cohete': () => gta.explodeNearby(),
   'Rayo': () => gta.setWeather('THUNDER'),
