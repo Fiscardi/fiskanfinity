@@ -15,6 +15,7 @@ const crashLives = require('./crashLivesMemory');
 const crashMasks = require('./crashMasksMemory');
 const metalSlugBombs = require('./metalSlugBombsMemory');
 const metalSlugLives = require('./metalSlugLivesMemory');
+const { handleGtaGift } = require('./gtaGiftCatalog');
 
 function createServer({ userDataDir, port = 8420 }) {
   const app = express();
@@ -353,6 +354,10 @@ let giftsSource = cachedGifts.source;
     const diamonds = (event.diamondCount || 0) * (event.repeatCount || 1);
     const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
     const giftName = event.giftName || 'un regalo';
+    // GTA V Interactive
+handleGtaGift(giftName).catch(err => {
+  console.error('Error GTA Gift:', err);
+});
 
     learnGiftFromEvent(event.giftId, event.giftName, event.diamondCount || 0);
 
