@@ -358,9 +358,7 @@ let giftsSource = cachedGifts.source;
     if (action.gtaChaosCount) {
       gta.spawnChaos(Number(action.gtaChaosCount)).catch(() => {});
     }
-       }
-     }
-     }
+  }
 
   // Revisa los eventos configurados del perfil activo y dispara los que matcheen
   function checkEvents(triggerType, vars) {
