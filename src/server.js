@@ -15,6 +15,7 @@ const crashLives = require('./crashLivesMemory');
 const crashMasks = require('./crashMasksMemory');
 const metalSlugBombs = require('./metalSlugBombsMemory');
 const metalSlugLives = require('./metalSlugLivesMemory');
+const { gta } = require('./gtaConnector');
 
 function createServer({ userDataDir, port = 8420 }) {
   const app = express();
@@ -320,7 +321,45 @@ let giftsSource = cachedGifts.source;
        if (action.minecraftCommand) {
          const mcVars = { ...vars, player: config.get('mcPlayerName') || '' };
          sendMinecraftCommand(resolveText(action.minecraftCommand, mcVars));
+         
        }
+     
+         // ---------- GTA V (FiskLiveGTA mod, via TCP local puerto 8421) ----------
+    // Todas estas llamadas son async pero no bloqueamos fireAction esperandolas;
+    // si falla (GTA cerrado, mod no cargado), solo lo logueamos, no rompe el resto.
+
+    if (action.gtaSpawnVehicle) {
+      gta.spawnVehicle(action.gtaSpawnVehicle).catch(() => {});
+    }
+    if (action.gtaGiveWeapon) {
+      gta.giveWeapon(action.gtaGiveWeapon).catch(() => {});
+    }
+    if (action.gtaWanted !== undefined && action.gtaWanted !== '') {
+      gta.setWanted(Number(action.gtaWanted)).catch(() => {});
+    }
+    if (action.gtaHealth !== undefined && action.gtaHealth !== '') {
+      gta.setHealth(Number(action.gtaHealth)).catch(() => {});
+    }
+    if (action.gtaArmor !== undefined && action.gtaArmor !== '') {
+      gta.setArmor(Number(action.gtaArmor)).catch(() => {});
+    }
+    if (action.gtaExplode) {
+      gta.explodeNearby().catch(() => {});
+    }
+    if (action.gtaWeather) {
+      gta.setWeather(action.gtaWeather).catch(() => {});
+    }
+    if (action.gtaTeleport) {
+      gta.teleportRandom().catch(() => {});
+    }
+    if (action.gtaRagdoll) {
+      gta.ragdoll().catch(() => {});
+    }
+    if (action.gtaChaosCount) {
+      gta.spawnChaos(Number(action.gtaChaosCount)).catch(() => {});
+    }
+       }
+     }
      }
 
   // Revisa los eventos configurados del perfil activo y dispara los que matcheen
