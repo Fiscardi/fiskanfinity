@@ -329,7 +329,11 @@ let giftsSource = cachedGifts.source;
     // si falla (GTA cerrado, mod no cargado), solo lo logueamos, no rompe el resto.
 
     if (action.gtaSpawnVehicle) {
-      gta.spawnVehicle(action.gtaSpawnVehicle).catch(() => {});
+      if (action.gtaReplaceVehicle) {
+        gta.spawnVehicleMilestone(action.gtaSpawnVehicle).catch(() => {});
+      } else {
+        gta.spawnVehicle(action.gtaSpawnVehicle).catch(() => {});
+      }
     }
     if (action.gtaGiveWeapon) {
       gta.giveWeapon(action.gtaGiveWeapon).catch(() => {});
@@ -369,7 +373,12 @@ let giftsSource = cachedGifts.source;
         const nameOk = !ev.giftName || (vars.gift || '').toLowerCase() === ev.giftName.toLowerCase();
         if (nameOk && vars.diamonds >= (ev.minCoins || 1)) fireAction(profile, ev.actionId, vars);
       } else if (triggerType === 'like') {
-        if (vars.total >= (ev.minLikes || 100) && vars.total - vars.delta < (ev.minLikes || 100)) {
+        // Dispara cada vez que se cruza un multiplo del paso configurado
+        // (ej. minLikes=100 -> dispara en 100, 200, 300, etc, no solo la primera vez)
+        const step = ev.minLikes || 100;
+        const before = Math.floor((vars.total - vars.delta) / step);
+        const after = Math.floor(vars.total / step);
+        if (after > before) {
           fireAction(profile, ev.actionId, vars);
         }
       } else {
