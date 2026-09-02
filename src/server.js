@@ -1,6 +1,3 @@
-const { gta } = require('./gtaConnector');
-gta.spawnVehicle('adder');
-
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
