@@ -492,7 +492,8 @@ function renderActionsList(profile) {
       <div class="field-row"><span>Máscaras Aku Aku Crash (0 a 3, valor exacto, opcional)</span><input type="number" step="1" min="0" max="3" value="${a.crashBandicootMasks !== undefined ? a.crashBandicootMasks : ''}" data-a-field="crashBandicootMasks" placeholder="0, 1, 2 o 3" /></div>
       <div class="field-row"><span>Bombas Metal Slug (número, negativo = quita, opcional)</span><input type="number" step="1" value="${a.metalSlugBombs || 0}" data-a-field="metalSlugBombs" placeholder="1 o -1" /></div>
       <div class="field-row"><span>Vidas Metal Slug (número, negativo = quita, opcional)</span><input type="number" step="1" value="${a.metalSlugLives || 0}" data-a-field="metalSlugLives" placeholder="1 o -1" /></div>
-      <div class="field-row"><span>GTA: Spawnear vehículo (nombre modelo, opcional)</span><input type="text" value="${escapeHtml(a.gtaSpawnVehicle || '')}" data-a-field="gtaSpawnVehicle" placeholder="adder, zentorno, blista..." /></div>
+      <div class="field-row"><span>GTA: Spawnear vehículo (nombre modelo o "random", opcional)</span><input type="text" value="${escapeHtml(a.gtaSpawnVehicle || '')}" data-a-field="gtaSpawnVehicle" placeholder="adder, zentorno, random..." /></div>
+      <div class="field-row"><span>GTA: Reemplazar el vehículo anterior en vez de sumar otro (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaReplaceVehicle || 0}" data-a-field="gtaReplaceVehicle" placeholder="1 o 0" /></div>
       <div class="field-row"><span>GTA: Dar arma (nombre oficial, opcional)</span><input type="text" value="${escapeHtml(a.gtaGiveWeapon || '')}" data-a-field="gtaGiveWeapon" placeholder="WEAPON_MINIGUN, WEAPON_PISTOL..." /></div>
       <div class="field-row"><span>GTA: Nivel de búsqueda (0 a 5, opcional)</span><input type="number" step="1" min="0" max="5" value="${a.gtaWanted !== undefined ? a.gtaWanted : ''}" data-a-field="gtaWanted" placeholder="0 a 5" /></div>
       <div class="field-row"><span>GTA: Vida del personaje (0-200, opcional)</span><input type="number" step="1" min="0" max="200" value="${a.gtaHealth !== undefined ? a.gtaHealth : ''}" data-a-field="gtaHealth" placeholder="100" /></div>
@@ -588,7 +589,7 @@ function renderEventsTable(profile) {
             </button>
             <input type="number" min="1" value="${ev.minCoins}" data-e-field="minCoins" title="Monedas mínimas" />` : ''}
           ${ev.triggerType === 'like' ? `
-            <input type="number" min="1" value="${ev.minLikes}" data-e-field="minLikes" title="Likes mínimos" />` : ''}
+            <input type="number" min="1" value="${ev.minLikes}" data-e-field="minLikes" title="Dispara cada esta cantidad de likes (ej. 100 = dispara en 100, 200, 300...)" />` : ''}
         </div>
       </td>
       <td>
