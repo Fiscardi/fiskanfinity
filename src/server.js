@@ -362,6 +362,12 @@ let giftsSource = cachedGifts.source;
     if (action.gtaChaosCount) {
       gta.spawnChaos(Number(action.gtaChaosCount)).catch(() => {});
     }
+    if (action.gtaChiliadStart) {
+      gta.chiliadStart().catch(() => {});
+    }
+    if (action.gtaChiliadStop) {
+      gta.chiliadStop().catch(() => {});
+    }
   }
 
   // Revisa los eventos configurados del perfil activo y dispara los que matcheen
@@ -931,6 +937,13 @@ let giftsSource = cachedGifts.source;
       const count = Number(body.count) || Math.floor(Math.random() * 200) + 5;
       broadcast('viewers', { count });
     }
+    res.json({ ok: true });
+  });
+
+  // Recibe el estado del desafio Monte Chiliad desde el mod de GTA (FiskLiveGTA.dll)
+  // y lo reenvia por WebSocket a cualquier overlay conectado.
+  app.post('/api/gta/chiliad-status', (req, res) => {
+    broadcast('chiliadChallenge', req.body || {});
     res.json({ ok: true });
   });
 

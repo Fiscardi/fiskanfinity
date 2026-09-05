@@ -59,7 +59,6 @@ function sendGtaCommand(action, params = {}) {
 
 const gta = {
   spawnVehicle: (model = 'adder') => sendGtaCommand('spawn_vehicle', { model }),
-  spawnVehicleMilestone: (model = 'random') => sendGtaCommand('spawn_vehicle_milestone', { model }),
   giveWeapon: (weapon = 'WEAPON_PISTOL') => sendGtaCommand('give_weapon', { weapon }),
   setWanted: (level = 3) => sendGtaCommand('set_wanted', { level }),
   setHealth: (value = 100) => sendGtaCommand('set_health', { value }),
@@ -69,6 +68,8 @@ const gta = {
   teleportRandom: () => sendGtaCommand('teleport_random'),
   ragdoll: () => sendGtaCommand('ragdoll'),
   spawnChaos: (count = 5) => sendGtaCommand('spawn_ped_chaos', { count }),
+  chiliadStart: () => sendGtaCommand('chiliad_start'),
+  chiliadStop: () => sendGtaCommand('chiliad_stop'),
 };
 
 module.exports = { sendGtaCommand, gta };
