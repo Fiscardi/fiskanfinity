@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<title>Monte Chiliad - Overlay</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto+Slab:wght@500;700&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  :root {
+    --stone-dark: #1c2620;
+    --panel: #24312a;
+    --panel-edge: #33453a;
+    --cream: #ece4d3;
+    --stone-muted: #8b9389;
+    --amber: #d98e3c;
+    --moss: #7fae66;
+    --rust: #b5573a;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    font-family: 'Roboto Slab', Georgia, serif;
+    overflow: hidden;
+  }
+
+  .card {
+    position: relative;
+    width: 360px;
+    padding: 20px 22px;
+    background: var(--panel);
+    border: 1px solid var(--panel-edge);
+    border-radius: 6px;
+    color: var(--cream);
+    box-shadow: 0 12px 30px rgba(0,0,0,.45);
+    overflow: hidden;
+  }
+
+  /* Lineas de nivel topografico, de fondo, sutiles */
+  .contours {
+    position: absolute;
+    inset: 0;
+    opacity: .16;
+    pointer-events: none;
+  }
+
+  .head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    position: relative;
+  }
+
+  .peak-icon {
+    flex: none;
+    width: 30px;
+    height: 30px;
+  }
+
+  .title {
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: .01em;
+    color: var(--cream);
+  }
+
+  .subtitle {
+    font-size: 11px;
+    color: var(--stone-muted);
+    margin-top: 1px;
+  }
+
+  .victories-pill {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,.22);
+    border: 1px solid var(--panel-edge);
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--amber);
+  }
+
+  .status-row {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-height: 64px;
+  }
+
+  .ring-wrap {
+    position: relative;
+    flex: none;
+    width: 64px;
+    height: 64px;
+  }
+
+  .ring-wrap svg { transform: rotate(-90deg); }
+
+  .ring-bg { stroke: rgba(255,255,255,.08); }
+  .ring-fg {
+    stroke: var(--amber);
+    stroke-linecap: round;
+    transition: stroke-dashoffset .25s linear, stroke .3s ease;
+  }
+
+  .ring-time {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', 'Consolas', monospace;
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .status-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .status-line {
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.25;
+    transition: color .3s ease;
+  }
+
+  .status-hint {
+    font-size: 12px;
+    color: var(--stone-muted);
+    margin-top: 3px;
+    font-family: 'Roboto Slab', Georgia, serif;
+  }
+
+  .flash {
+    animation: flashPulse 1.4s ease-in-out;
+  }
+
+  @keyframes flashPulse {
+    0%   { transform: scale(1); }
+    15%  { transform: scale(1.05); }
+    30%  { transform: scale(1); }
+  }
+
+  .conn-dot {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--rust);
+  }
+  .conn-dot.on { background: var(--moss); }
+</style>
+</head>
+<body>
+
+<div class="card" id="card">
+  <span class="conn-dot" id="connDot"></span>
+  <div class="contours">
+    <svg width="100%" height="100%" viewBox="0 0 360 140" preserveAspectRatio="none">
+      <path d="M -20 120 Q 60 60 140 100 T 300 80 T 420 110" fill="none" stroke="#ece4d3" stroke-width="1"/>
+      <path d="M -20 90  Q 60 35 140 75  T 300 55 T 420 85"  fill="none" stroke="#ece4d3" stroke-width="1"/>
+      <path d="M -20 60  Q 60 10 140 50  T 300 30 T 420 60"  fill="none" stroke="#ece4d3" stroke-width="1"/>
+    </svg>
+  </div>
+
+  <div class="head">
+    <svg class="peak-icon" viewBox="0 0 32 32">
+      <polygon points="16,4 28,26 4,26" fill="#3a4d3f" stroke="#ece4d3" stroke-width="1.2"/>
+      <polygon points="16,4 20,12 12,12" fill="#ece4d3"/>
+    </svg>
+    <div>
+      <div class="title">Monte Chiliad</div>
+      <div class="subtitle">Desafío en vivo</div>
+    </div>
+    <div class="victories-pill">🏔 <span id="victories">0</span></div>
+  </div>
+
+  <div class="status-row">
+    <div class="ring-wrap">
+      <svg width="64" height="64" viewBox="0 0 64 64">
+        <circle class="ring-bg" cx="32" cy="32" r="27" fill="none" stroke-width="6"/>
+        <circle class="ring-fg" id="ring" cx="32" cy="32" r="27" fill="none" stroke-width="6"
+                stroke-dasharray="169.6" stroke-dashoffset="169.6"/>
+      </svg>
+      <div class="ring-time" id="ringTime">--</div>
+    </div>
+    <div class="status-text">
+      <div class="status-line" id="statusLine">Esperando conexión...</div>
+      <div class="status-hint" id="statusHint">Iniciá el desafío desde FiskLive</div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const RING_CIRC = 2 * Math.PI * 27;
+  const card = document.getElementById('card');
+  const ring = document.getElementById('ring');
+  const ringTime = document.getElementById('ringTime');
+  const statusLine = document.getElementById('statusLine');
+  const statusHint = document.getElementById('statusHint');
+  const victoriesEl = document.getElementById('victories');
+  const connDot = document.getElementById('connDot');
+
+  ring.setAttribute('stroke-dasharray', RING_CIRC.toFixed(1));
+
+  function setRing(fraction, color) {
+    const offset = RING_CIRC * (1 - Math.max(0, Math.min(1, fraction)));
+    ring.setAttribute('stroke-dashoffset', offset.toFixed(1));
+    if (color) ring.style.stroke = color;
+  }
+
+  function render(data) {
+    const phase = data.phase || 'climbing';
+    const hold = Number(data.holdSeconds) || 0;
+    const target = Number(data.holdTarget) || 10;
+    const victories = Number(data.victories) || 0;
+
+    victoriesEl.textContent = victories;
+
+    if (phase === 'climbing') {
+      statusLine.textContent = 'Subiendo a la cima';
+      statusHint.textContent = 'Los espectadores pueden ayudar o complicar el camino';
+      statusLine.style.color = 'var(--cream)';
+      ringTime.textContent = '⛰';
+      setRing(0, '#d98e3c');
+    } else if (phase === 'holding') {
+      statusLine.textContent = 'Aguantando en la cima';
+      statusHint.textContent = 'No te muevas...';
+      statusLine.style.color = 'var(--amber)';
+      ringTime.textContent = hold.toFixed(1) + 's';
+      setRing(hold / target, '#d98e3c');
+    } else if (phase === 'victory') {
+      statusLine.textContent = '¡Victoria!';
+      statusHint.textContent = 'Cima conquistada — reiniciando el desafío';
+      statusLine.style.color = 'var(--moss)';
+      ringTime.textContent = '✓';
+      setRing(1, '#7fae66');
+      card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+    } else if (phase === 'failed') {
+      statusLine.textContent = 'Te atraparon';
+      statusHint.textContent = 'De nuevo al ruedo';
+      statusLine.style.color = 'var(--rust)';
+      ringTime.textContent = '✕';
+      setRing(0, '#b5573a');
+    } else if (phase === 'stopped') {
+      statusLine.textContent = 'Desafío detenido';
+      statusHint.textContent = 'Esperando el próximo intento';
+      statusLine.style.color = 'var(--stone-muted)';
+      ringTime.textContent = '--';
+      setRing(0, '#8b9389');
+    }
+  }
+
+  function connect() {
+    const ws = new WebSocket('ws://127.0.0.1:8420/ws');
+
+    ws.onopen = () => { connDot.classList.add('on'); };
+    ws.onclose = () => { connDot.classList.remove('on'); setTimeout(connect, 2000); };
+    ws.onerror = () => { ws.close(); };
+
+    ws.onmessage = (ev) => {
+      try {
+        const msg = JSON.parse(ev.data);
+        if (msg.type === 'chiliadChallenge') {
+          render(msg.payload || {});
+        }
+      } catch (e) { /* ignorar mensajes no relacionados */ }
+    };
+  }
+
+  connect();
+</script>
+
+</body>
+</html>
