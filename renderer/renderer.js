@@ -503,6 +503,8 @@ function renderActionsList(profile) {
       <div class="field-row"><span>GTA: Teletransporte random (1 = si, 0 = no, opcional)</span><input type="number" step="1" min="0" max="1" value="${a.gtaTeleport || 0}" data-a-field="gtaTeleport" placeholder="1 o 0" /></div>
       <div class="field-row"><span>GTA: Golpe fantasma / ragdoll (1 = si, 0 = no, opcional)</span><input type="number" step="1" min="0" max="1" value="${a.gtaRagdoll || 0}" data-a-field="gtaRagdoll" placeholder="1 o 0" /></div>
       <div class="field-row"><span>GTA: Enemigos de caos (cantidad, opcional)</span><input type="number" step="1" min="0" value="${a.gtaChaosCount || 0}" data-a-field="gtaChaosCount" placeholder="5" /></div>
+      <div class="field-row"><span>GTA: Iniciar desafío Monte Chiliad (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaChiliadStart || 0}" data-a-field="gtaChiliadStart" placeholder="1 o 0" /></div>
+      <div class="field-row"><span>GTA: Detener desafío Monte Chiliad (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaChiliadStop || 0}" data-a-field="gtaChiliadStop" placeholder="1 o 0" /></div>
       <div class="ac-row2">
         <select data-a-field="webhookMethod" title="Método del webhook" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px;">
           <option value="POST" ${(a.webhookMethod || 'POST') === 'POST' ? 'selected' : ''}>POST</option>
