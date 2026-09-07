@@ -362,6 +362,21 @@ let giftsSource = cachedGifts.source;
     if (action.gtaChaosCount) {
       gta.spawnChaos(Number(action.gtaChaosCount)).catch(() => {});
     }
+    if (action.gtaBoulderCount) {
+      gta.spawnBoulders(Number(action.gtaBoulderCount)).catch(() => {});
+    }
+    if (action.gtaBreakVehicle) {
+      gta.breakVehicle().catch(() => {});
+    }
+    if (action.gtaBlindingFog) {
+      gta.blindingFog(Number(action.gtaBlindingFog)).catch(() => {});
+    }
+    if (action.gtaApocalypse) {
+      gta.apocalypse(Number(action.gtaApocalypse)).catch(() => {});
+    }
+    if (action.gtaKillerMonkeys) {
+      gta.killerMonkeys(Number(action.gtaKillerMonkeys)).catch(() => {});
+    }
     if (action.gtaChiliadStart) {
       gta.chiliadStart().catch(() => {});
     }
