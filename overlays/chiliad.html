@@ -241,7 +241,7 @@
       statusLine.textContent = 'Aguantando en la cima';
       statusHint.textContent = 'No te muevas...';
       statusLine.style.color = 'var(--amber)';
-      ringTime.textContent = hold.toFixed(1) + 's';
+      ringTime.textContent = Math.max(0, target - hold).toFixed(1) + 's';
       setRing(hold / target, '#d98e3c');
     } else if (phase === 'victory') {
       statusLine.textContent = '¡Victoria!';
