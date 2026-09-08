@@ -488,28 +488,52 @@ function renderActionsList(profile) {
       <div class="field-row"><span>Sonido (URL .mp3, opcional)</span><input type="text" value="${escapeHtml(a.soundUrl || '')}" data-a-field="soundUrl" placeholder="https://..." /></div>
       <div class="field-row"><span>Webhook hacia el juego/mod (opcional)</span><input type="text" value="${escapeHtml(a.webhookUrl || '')}" data-a-field="webhookUrl" placeholder="http://localhost:PUERTO/..." /></div>
       <div class="field-row"><span>Comando de Minecraft (RCON, opcional)</span><input type="text" value="${escapeHtml(a.minecraftCommand || '')}" data-a-field="minecraftCommand" placeholder="give {user} diamond 5" /></div>
-      <div class="field-row"><span>Vidas Crash Bandicoot (número, negativo = quita, opcional)</span><input type="number" step="1" value="${a.crashBandicootLives || 0}" data-a-field="crashBandicootLives" placeholder="1 o -1" /></div>
-      <div class="field-row"><span>Máscaras Aku Aku Crash (0 a 3, valor exacto, opcional)</span><input type="number" step="1" min="0" max="3" value="${a.crashBandicootMasks !== undefined ? a.crashBandicootMasks : ''}" data-a-field="crashBandicootMasks" placeholder="0, 1, 2 o 3" /></div>
-      <div class="field-row"><span>Bombas Metal Slug (número, negativo = quita, opcional)</span><input type="number" step="1" value="${a.metalSlugBombs || 0}" data-a-field="metalSlugBombs" placeholder="1 o -1" /></div>
-      <div class="field-row"><span>Vidas Metal Slug (número, negativo = quita, opcional)</span><input type="number" step="1" value="${a.metalSlugLives || 0}" data-a-field="metalSlugLives" placeholder="1 o -1" /></div>
-      <div class="field-row"><span>GTA: Spawnear vehículo (nombre modelo o "random", opcional)</span><input type="text" value="${escapeHtml(a.gtaSpawnVehicle || '')}" data-a-field="gtaSpawnVehicle" placeholder="adder, zentorno, random..." /></div>
-      <div class="field-row"><span>GTA: Reemplazar el vehículo anterior en vez de sumar otro (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaReplaceVehicle || 0}" data-a-field="gtaReplaceVehicle" placeholder="1 o 0" /></div>
-      <div class="field-row"><span>GTA: Dar arma (nombre oficial, opcional)</span><input type="text" value="${escapeHtml(a.gtaGiveWeapon || '')}" data-a-field="gtaGiveWeapon" placeholder="WEAPON_MINIGUN, WEAPON_PISTOL..." /></div>
-      <div class="field-row"><span>GTA: Nivel de búsqueda (0 a 5, opcional)</span><input type="number" step="1" min="0" max="5" value="${a.gtaWanted !== undefined ? a.gtaWanted : ''}" data-a-field="gtaWanted" placeholder="0 a 5" /></div>
-      <div class="field-row"><span>GTA: Vida del personaje (0-200, opcional)</span><input type="number" step="1" min="0" max="200" value="${a.gtaHealth !== undefined ? a.gtaHealth : ''}" data-a-field="gtaHealth" placeholder="100" /></div>
-      <div class="field-row"><span>GTA: Armadura del personaje (0-100, opcional)</span><input type="number" step="1" min="0" max="100" value="${a.gtaArmor !== undefined ? a.gtaArmor : ''}" data-a-field="gtaArmor" placeholder="100" /></div>
-      <div class="field-row"><span>GTA: Explosión cerca (1 = si, 0 = no, opcional)</span><input type="number" step="1" min="0" max="1" value="${a.gtaExplode || 0}" data-a-field="gtaExplode" placeholder="1 o 0" /></div>
-      <div class="field-row"><span>GTA: Cambiar clima (opcional)</span><input type="text" value="${escapeHtml(a.gtaWeather || '')}" data-a-field="gtaWeather" placeholder="THUNDER, RAIN, CLEAR, FOGGY..." /></div>
-      <div class="field-row"><span>GTA: Teletransporte random (1 = si, 0 = no, opcional)</span><input type="number" step="1" min="0" max="1" value="${a.gtaTeleport || 0}" data-a-field="gtaTeleport" placeholder="1 o 0" /></div>
-      <div class="field-row"><span>GTA: Golpe fantasma / ragdoll (1 = si, 0 = no, opcional)</span><input type="number" step="1" min="0" max="1" value="${a.gtaRagdoll || 0}" data-a-field="gtaRagdoll" placeholder="1 o 0" /></div>
-      <div class="field-row"><span>GTA: Enemigos de caos (cantidad, opcional)</span><input type="number" step="1" min="0" value="${a.gtaChaosCount || 0}" data-a-field="gtaChaosCount" placeholder="5" /></div>
-      <div class="field-row"><span>GTA: Rocas gigantes que caen y aplastan (cantidad, opcional)</span><input type="number" step="1" min="0" value="${a.gtaBoulderCount || 0}" data-a-field="gtaBoulderCount" placeholder="3" /></div>
-      <div class="field-row"><span>GTA: El vehículo se desarma (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaBreakVehicle || 0}" data-a-field="gtaBreakVehicle" placeholder="1 o 0" /></div>
-      <div class="field-row"><span>GTA: Neblina cegadora por X segundos (0 = no activar)</span><input type="number" step="1" min="0" value="${a.gtaBlindingFog || 0}" data-a-field="gtaBlindingFog" placeholder="15" /></div>
-      <div class="field-row"><span>GTA: Apocalipsis por X segundos (0 = no activar)</span><input type="number" step="1" min="0" value="${a.gtaApocalypse || 0}" data-a-field="gtaApocalypse" placeholder="30" /></div>
-      <div class="field-row"><span>GTA: Monos asesinos (cantidad, opcional)</span><input type="number" step="1" min="0" value="${a.gtaKillerMonkeys || 0}" data-a-field="gtaKillerMonkeys" placeholder="5" /></div>
-      <div class="field-row"><span>GTA: Iniciar desafío Monte Chiliad (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaChiliadStart || 0}" data-a-field="gtaChiliadStart" placeholder="1 o 0" /></div>
-      <div class="field-row"><span>GTA: Detener desafío Monte Chiliad (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaChiliadStop || 0}" data-a-field="gtaChiliadStop" placeholder="1 o 0" /></div>
+
+      <details class="field-group" style="margin:8px 0; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px;">
+        <summary style="cursor:pointer; padding:6px 0; font-weight:600; color:var(--cyan,#4dd0e1); user-select:none;">Crash Bandicoot</summary>
+        <div class="field-row"><span>Vidas Crash Bandicoot (número, negativo = quita, opcional)</span><input type="number" step="1" value="${a.crashBandicootLives || 0}" data-a-field="crashBandicootLives" placeholder="1 o -1" /></div>
+        <div class="field-row"><span>Máscaras Aku Aku Crash (0 a 3, valor exacto, opcional)</span><input type="number" step="1" min="0" max="3" value="${a.crashBandicootMasks !== undefined ? a.crashBandicootMasks : ''}" data-a-field="crashBandicootMasks" placeholder="0, 1, 2 o 3" /></div>
+      </details>
+
+      <details class="field-group" style="margin:8px 0; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px;">
+        <summary style="cursor:pointer; padding:6px 0; font-weight:600; color:var(--cyan,#4dd0e1); user-select:none;">Metal Slug</summary>
+        <div class="field-row"><span>Bombas Metal Slug (número, negativo = quita, opcional)</span><input type="number" step="1" value="${a.metalSlugBombs || 0}" data-a-field="metalSlugBombs" placeholder="1 o -1" /></div>
+        <div class="field-row"><span>Vidas Metal Slug (número, negativo = quita, opcional)</span><input type="number" step="1" value="${a.metalSlugLives || 0}" data-a-field="metalSlugLives" placeholder="1 o -1" /></div>
+      </details>
+
+      <details class="field-group" style="margin:8px 0; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px;">
+        <summary style="cursor:pointer; padding:6px 0; font-weight:600; color:var(--cyan,#4dd0e1); user-select:none;">GTA V: Vehículos</summary>
+        <div class="field-row"><span>GTA: Spawnear vehículo (nombre modelo o "random", opcional)</span><input type="text" value="${escapeHtml(a.gtaSpawnVehicle || '')}" data-a-field="gtaSpawnVehicle" placeholder="adder, zentorno, random..." /></div>
+        <div class="field-row"><span>GTA: Reemplazar el vehículo anterior en vez de sumar otro (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaReplaceVehicle || 0}" data-a-field="gtaReplaceVehicle" placeholder="1 o 0" /></div>
+        <div class="field-row"><span>GTA: El vehículo se desarma (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaBreakVehicle || 0}" data-a-field="gtaBreakVehicle" placeholder="1 o 0" /></div>
+      </details>
+
+      <details class="field-group" style="margin:8px 0; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px;">
+        <summary style="cursor:pointer; padding:6px 0; font-weight:600; color:var(--cyan,#4dd0e1); user-select:none;">GTA V: Combate y estado</summary>
+        <div class="field-row"><span>GTA: Dar arma (nombre oficial, opcional)</span><input type="text" value="${escapeHtml(a.gtaGiveWeapon || '')}" data-a-field="gtaGiveWeapon" placeholder="WEAPON_MINIGUN, WEAPON_PISTOL..." /></div>
+        <div class="field-row"><span>GTA: Nivel de búsqueda (0 a 5, opcional)</span><input type="number" step="1" min="0" max="5" value="${a.gtaWanted !== undefined ? a.gtaWanted : ''}" data-a-field="gtaWanted" placeholder="0 a 5" /></div>
+        <div class="field-row"><span>GTA: Vida del personaje (0-200, opcional)</span><input type="number" step="1" min="0" max="200" value="${a.gtaHealth !== undefined ? a.gtaHealth : ''}" data-a-field="gtaHealth" placeholder="100" /></div>
+        <div class="field-row"><span>GTA: Armadura del personaje (0-100, opcional)</span><input type="number" step="1" min="0" max="100" value="${a.gtaArmor !== undefined ? a.gtaArmor : ''}" data-a-field="gtaArmor" placeholder="100" /></div>
+        <div class="field-row"><span>GTA: Explosión cerca (1 = si, 0 = no, opcional)</span><input type="number" step="1" min="0" max="1" value="${a.gtaExplode || 0}" data-a-field="gtaExplode" placeholder="1 o 0" /></div>
+        <div class="field-row"><span>GTA: Golpe fantasma / ragdoll (1 = si, 0 = no, opcional)</span><input type="number" step="1" min="0" max="1" value="${a.gtaRagdoll || 0}" data-a-field="gtaRagdoll" placeholder="1 o 0" /></div>
+        <div class="field-row"><span>GTA: Enemigos de caos (cantidad, opcional)</span><input type="number" step="1" min="0" value="${a.gtaChaosCount || 0}" data-a-field="gtaChaosCount" placeholder="5" /></div>
+        <div class="field-row"><span>GTA: Rocas gigantes que caen y aplastan (cantidad, opcional)</span><input type="number" step="1" min="0" value="${a.gtaBoulderCount || 0}" data-a-field="gtaBoulderCount" placeholder="3" /></div>
+        <div class="field-row"><span>GTA: Monos asesinos (cantidad, opcional)</span><input type="number" step="1" min="0" value="${a.gtaKillerMonkeys || 0}" data-a-field="gtaKillerMonkeys" placeholder="5" /></div>
+      </details>
+
+      <details class="field-group" style="margin:8px 0; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px;">
+        <summary style="cursor:pointer; padding:6px 0; font-weight:600; color:var(--cyan,#4dd0e1); user-select:none;">GTA V: Clima y eventos</summary>
+        <div class="field-row"><span>GTA: Cambiar clima (opcional)</span><input type="text" value="${escapeHtml(a.gtaWeather || '')}" data-a-field="gtaWeather" placeholder="THUNDER, RAIN, CLEAR, FOGGY..." /></div>
+        <div class="field-row"><span>GTA: Teletransporte random (1 = si, 0 = no, opcional)</span><input type="number" step="1" min="0" max="1" value="${a.gtaTeleport || 0}" data-a-field="gtaTeleport" placeholder="1 o 0" /></div>
+        <div class="field-row"><span>GTA: Neblina cegadora por X segundos (0 = no activar)</span><input type="number" step="1" min="0" value="${a.gtaBlindingFog || 0}" data-a-field="gtaBlindingFog" placeholder="15" /></div>
+        <div class="field-row"><span>GTA: Apocalipsis por X segundos (0 = no activar)</span><input type="number" step="1" min="0" value="${a.gtaApocalypse || 0}" data-a-field="gtaApocalypse" placeholder="30" /></div>
+      </details>
+
+      <details class="field-group" style="margin:8px 0; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px;">
+        <summary style="cursor:pointer; padding:6px 0; font-weight:600; color:var(--cyan,#4dd0e1); user-select:none;">GTA V: Monte Chiliad</summary>
+        <div class="field-row"><span>GTA: Iniciar desafío Monte Chiliad (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaChiliadStart || 0}" data-a-field="gtaChiliadStart" placeholder="1 o 0" /></div>
+        <div class="field-row"><span>GTA: Detener desafío Monte Chiliad (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaChiliadStop || 0}" data-a-field="gtaChiliadStop" placeholder="1 o 0" /></div>
+      </details>
       <div class="ac-row2">
         <select data-a-field="webhookMethod" title="Método del webhook" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px;">
           <option value="POST" ${(a.webhookMethod || 'POST') === 'POST' ? 'selected' : ''}>POST</option>
