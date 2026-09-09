@@ -8,6 +8,7 @@ module.exports = [
   { id: 'default_rose', name: 'Rose', diamondCost: 1, icon: '' },
   { id: 'default_gg', name: 'GG', diamondCost: 1, icon: '' },
   { id: 'default_heart', name: 'Heart', diamondCost: 1, icon: '' },
+  { id: 'default_heartme', name: 'Heart Me', diamondCost: 1, icon: '' },
   { id: 'default_tiktok', name: 'TikTok', diamondCost: 1, icon: '' },
   { id: 'default_icecream', name: 'Ice Cream Cone', diamondCost: 1, icon: '' },
   { id: 'default_thumbsup', name: 'Thumbs Up', diamondCost: 1, icon: '' },
