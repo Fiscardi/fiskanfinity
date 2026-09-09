@@ -410,8 +410,18 @@ let giftsSource = cachedGifts.source;
   }
 
   let lastMilestoneSent = 0;
+  const giftDebugLogFile = path.join(userDataDir, 'gift-debug.log');
+
+  function logGiftDebug(event) {
+    try {
+      const line = `[${new Date().toISOString()}] giftName="${event.giftName}" giftId=${event.giftId} diamondCount=${event.diamondCount} repeatCount=${event.repeatCount} repeatEnd=${event.repeatEnd}\n`;
+      fs.appendFileSync(giftDebugLogFile, line, 'utf-8');
+    } catch (err) { /* noop */ }
+  }
 
   function handleGiftEvent(event) {
+    logGiftDebug(event);
+
     const profile = store.getActive();
     const cfg = profile.overlays.alert;
     // Mientras dura una racha de regalos, solo procesamos cuando termina (repeatEnd)
