@@ -365,6 +365,9 @@ let giftsSource = cachedGifts.source;
     if (action.gtaBoulderCount) {
       gta.spawnBoulders(Number(action.gtaBoulderCount)).catch(() => {});
     }
+    if (action.gtaGiantBallCount) {
+      gta.spawnGiantBalls(Number(action.gtaGiantBallCount)).catch(() => {});
+    }
     if (action.gtaBreakVehicle) {
       gta.breakVehicle().catch(() => {});
     }

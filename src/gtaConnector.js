@@ -70,6 +70,7 @@ const gta = {
   ragdoll: () => sendGtaCommand('ragdoll'),
   spawnChaos: (count = 5) => sendGtaCommand('spawn_ped_chaos', { count }),
   spawnBoulders: (count = 3) => sendGtaCommand('spawn_boulders', { count }),
+  spawnGiantBalls: (count = 4) => sendGtaCommand('spawn_giant_balls', { count }),
   breakVehicle: () => sendGtaCommand('break_vehicle'),
   blindingFog: (seconds = 15) => sendGtaCommand('blinding_fog', { seconds }),
   apocalypse: (seconds = 30) => sendGtaCommand('apocalypse', { seconds }),
