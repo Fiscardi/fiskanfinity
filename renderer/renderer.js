@@ -518,6 +518,7 @@ function renderActionsList(profile) {
         <div class="field-row"><span>GTA: Golpe fantasma / ragdoll (1 = si, 0 = no, opcional)</span><input type="number" step="1" min="0" max="1" value="${a.gtaRagdoll || 0}" data-a-field="gtaRagdoll" placeholder="1 o 0" /></div>
         <div class="field-row"><span>GTA: Enemigos de caos (cantidad, opcional)</span><input type="number" step="1" min="0" value="${a.gtaChaosCount || 0}" data-a-field="gtaChaosCount" placeholder="5" /></div>
         <div class="field-row"><span>GTA: Rocas gigantes que caen y aplastan (cantidad, opcional)</span><input type="number" step="1" min="0" value="${a.gtaBoulderCount || 0}" data-a-field="gtaBoulderCount" placeholder="3" /></div>
+        <div class="field-row"><span>GTA: Pelotas gigantes que caen y aplastan (cantidad, opcional)</span><input type="number" step="1" min="0" value="${a.gtaGiantBallCount || 0}" data-a-field="gtaGiantBallCount" placeholder="4" /></div>
         <div class="field-row"><span>GTA: Monos asesinos (cantidad, opcional)</span><input type="number" step="1" min="0" value="${a.gtaKillerMonkeys || 0}" data-a-field="gtaKillerMonkeys" placeholder="5" /></div>
       </details>
 
