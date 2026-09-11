@@ -71,6 +71,7 @@ const gta = {
   spawnChaos: (count = 5) => sendGtaCommand('spawn_ped_chaos', { count }),
   spawnBoulders: (count = 3) => sendGtaCommand('spawn_boulders', { count }),
   spawnGiantBalls: (count = 4) => sendGtaCommand('spawn_giant_balls', { count }),
+  carRain: (count = 5) => sendGtaCommand('car_rain', { count }),
   breakVehicle: () => sendGtaCommand('break_vehicle'),
   blindingFog: (seconds = 15) => sendGtaCommand('blinding_fog', { seconds }),
   apocalypse: (seconds = 30) => sendGtaCommand('apocalypse', { seconds }),
