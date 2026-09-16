@@ -368,8 +368,8 @@ let giftsSource = cachedGifts.source;
     if (action.gtaGiantBallCount) {
       gta.spawnGiantBalls(Number(action.gtaGiantBallCount)).catch(() => {});
     }
-    if (action.gtaCarRainCount) {
-      gta.carRain(Number(action.gtaCarRainCount)).catch(() => {});
+    if (action.gtaCarRainSeconds) {
+      gta.carRain(Number(action.gtaCarRainSeconds)).catch(() => {});
     }
     if (action.gtaBreakVehicle) {
       gta.breakVehicle().catch(() => {});
