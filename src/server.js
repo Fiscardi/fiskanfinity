@@ -380,6 +380,9 @@ let giftsSource = cachedGifts.source;
     if (action.gtaApocalypse) {
       gta.apocalypse(Number(action.gtaApocalypse)).catch(() => {});
     }
+    if (action.gtaBlackHole) {
+      gta.blackHole(Number(action.gtaBlackHole)).catch(() => {});
+    }
     if (action.gtaKillerMonkeys) {
       gta.killerMonkeys(Number(action.gtaKillerMonkeys)).catch(() => {});
     }

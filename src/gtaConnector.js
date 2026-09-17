@@ -78,6 +78,7 @@ const gta = {
   killerMonkeys: (count = 5) => sendGtaCommand('killer_monkeys', { count }),
   chiliadStart: () => sendGtaCommand('chiliad_start'),
   chiliadStop: () => sendGtaCommand('chiliad_stop'),
+  blackHole: (seconds = 8) => sendGtaCommand('black_hole', { seconds }),
 };
 
 module.exports = { sendGtaCommand, gta };
