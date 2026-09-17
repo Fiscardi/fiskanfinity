@@ -529,6 +529,7 @@ function renderActionsList(profile) {
         <div class="field-row"><span>GTA: Teletransporte random (1 = si, 0 = no, opcional)</span><input type="number" step="1" min="0" max="1" value="${a.gtaTeleport || 0}" data-a-field="gtaTeleport" placeholder="1 o 0" /></div>
         <div class="field-row"><span>GTA: Neblina cegadora por X segundos (0 = no activar)</span><input type="number" step="1" min="0" value="${a.gtaBlindingFog || 0}" data-a-field="gtaBlindingFog" placeholder="15" /></div>
         <div class="field-row"><span>GTA: Apocalipsis por X segundos (0 = no activar)</span><input type="number" step="1" min="0" value="${a.gtaApocalypse || 0}" data-a-field="gtaApocalypse" placeholder="30" /></div>
+        <div class="field-row"><span>GTA: Agujero negro por X segundos, succiona y explota - puede matar al jugador (0 = no activar)</span><input type="number" step="1" min="0" value="${a.gtaBlackHole || 0}" data-a-field="gtaBlackHole" placeholder="8" /></div>
       </details>
 
       <details class="field-group" style="margin:8px 0; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px;">
