@@ -472,6 +472,9 @@ function renderActionsAndEvents() {
 
 function renderActionsList(profile) {
   const list = document.getElementById('actionsList');
+  list.style.maxHeight = '65vh';
+  list.style.overflowY = 'auto';
+  list.style.paddingRight = '6px'; // espacio para que la barra de scroll no tape el contenido
   const gameId = currentGameFilterId();
   const actions = profile.actions.filter(a => (a.gameId || null) === gameId);
   if (actions.length === 0) {
@@ -479,11 +482,11 @@ function renderActionsList(profile) {
     return;
   }
   list.innerHTML = actions.map(a => `
-    <div class="action-card" data-action-id="${a.id}">
-      <div class="ac-top">
-        <input class="ac-name" type="text" value="${escapeHtml(a.name)}" data-a-field="name" />
-        <button class="small ghost danger" data-a-remove="${a.id}">✕</button>
-      </div>
+    <details class="action-card" data-action-id="${a.id}">
+      <summary class="ac-top">
+        <input class="ac-name" type="text" value="${escapeHtml(a.name)}" data-a-field="name" onclick="event.stopPropagation()" />
+        <button class="small ghost danger" data-a-remove="${a.id}" onclick="event.stopPropagation()">✕</button>
+      </summary>
       <div class="field-row"><span>Texto (usá {user})</span><input type="text" value="${escapeHtml(a.text)}" data-a-field="text" /></div>
       <div class="field-row"><span>Sonido (URL .mp3, opcional)</span><input type="text" value="${escapeHtml(a.soundUrl || '')}" data-a-field="soundUrl" placeholder="https://..." /></div>
       <div class="field-row"><span>Webhook hacia el juego/mod (opcional)</span><input type="text" value="${escapeHtml(a.webhookUrl || '')}" data-a-field="webhookUrl" placeholder="http://localhost:PUERTO/..." /></div>
@@ -529,7 +532,6 @@ function renderActionsList(profile) {
         <div class="field-row"><span>GTA: Teletransporte random (1 = si, 0 = no, opcional)</span><input type="number" step="1" min="0" max="1" value="${a.gtaTeleport || 0}" data-a-field="gtaTeleport" placeholder="1 o 0" /></div>
         <div class="field-row"><span>GTA: Neblina cegadora por X segundos (0 = no activar)</span><input type="number" step="1" min="0" value="${a.gtaBlindingFog || 0}" data-a-field="gtaBlindingFog" placeholder="15" /></div>
         <div class="field-row"><span>GTA: Apocalipsis por X segundos (0 = no activar)</span><input type="number" step="1" min="0" value="${a.gtaApocalypse || 0}" data-a-field="gtaApocalypse" placeholder="30" /></div>
-        <div class="field-row"><span>GTA: Agujero negro por X segundos, succiona y explota - puede matar al jugador (0 = no activar)</span><input type="number" step="1" min="0" value="${a.gtaBlackHole || 0}" data-a-field="gtaBlackHole" placeholder="8" /></div>
       </details>
 
       <details class="field-group" style="margin:8px 0; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px;">
@@ -546,7 +548,7 @@ function renderActionsList(profile) {
         <input type="number" min="1000" step="500" value="${a.duration}" data-a-field="duration" title="Duración (ms)" />
         <button class="small" data-a-test="${a.id}">Probar</button>
       </div>
-    </div>`).join('');
+    </details>`).join('');
 
   list.querySelectorAll('[data-a-field]').forEach(el => {
     const card = el.closest('.action-card');
