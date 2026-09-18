@@ -423,7 +423,7 @@ let giftsSource = cachedGifts.source;
 
   function logGiftDebug(event) {
     try {
-      const line = `[${new Date().toISOString()}] giftName="${event.giftName}" giftId=${event.giftId} diamondCount=${event.diamondCount} repeatCount=${event.repeatCount} repeatEnd=${event.repeatEnd}\n`;
+      const line = `[${new Date().toISOString()}] giftName="${event.giftName}" giftId=${event.giftId} giftType=${event.giftType} diamondCount=${event.diamondCount} repeatCount=${event.repeatCount} repeatEnd=${event.repeatEnd}\n`;
       fs.appendFileSync(giftDebugLogFile, line, 'utf-8');
     } catch (err) { /* noop */ }
   }
@@ -433,8 +433,18 @@ let giftsSource = cachedGifts.source;
 
     const profile = store.getActive();
     const cfg = profile.overlays.alert;
-    // Mientras dura una racha de regalos, solo procesamos cuando termina (repeatEnd)
-    if (!event.repeatEnd) return;
+
+    // Solo los regalos "combeables" (giftType === 1, como la rosa, que se
+    // pueden mandar en racha) usan repeatEnd para avisar que la racha
+    // terminó — hay que esperarlo para no contar el combo de a poquito.
+    // Los regalos NO combeables (la mayoría) llegan en un solo evento, y
+    // según la versión de la librería de TikTok, ese evento puede traer
+    // repeatEnd en false/undefined porque no hay ninguna racha que cerrar.
+    // Si esperáramos ese flag ahí, esos regalos nunca se procesarían -
+    // que es justo lo que pasaba con el apocalipsis (y cualquier otra
+    // acción atada a un regalo no combeable).
+    const isStreakable = event.giftType === 1;
+    if (isStreakable && !event.repeatEnd) return;
 
     const diamonds = (event.diamondCount || 0) * (event.repeatCount || 1);
     const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
