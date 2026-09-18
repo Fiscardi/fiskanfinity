@@ -483,7 +483,8 @@ function renderActionsList(profile) {
   }
   list.innerHTML = actions.map(a => `
     <details class="action-card" data-action-id="${a.id}">
-      <summary class="ac-top">
+      <summary class="ac-top" style="cursor:pointer;">
+        <span class="ac-chevron" style="display:inline-block; width:16px; margin-right:6px; opacity:.75; transition:transform .15s ease;">▶</span>
         <input class="ac-name" type="text" value="${escapeHtml(a.name)}" data-a-field="name" onclick="event.stopPropagation()" />
         <button class="small ghost danger" data-a-remove="${a.id}" onclick="event.stopPropagation()">✕</button>
       </summary>
@@ -574,6 +575,13 @@ function renderActionsList(profile) {
           await api(`/api/profiles/${profile.id}/events/${ev.id}/test`, { method: 'POST' });
           await api(`/api/profiles/${profile.id}/events/${ev.id}`, { method: 'DELETE' });
         });
+    });
+  });
+  list.querySelectorAll('.action-card').forEach(card => {
+    const chevron = card.querySelector('.ac-chevron');
+    if (!chevron) return;
+    card.addEventListener('toggle', () => {
+      chevron.style.transform = card.open ? 'rotate(90deg)' : 'rotate(0deg)';
     });
   });
 }
