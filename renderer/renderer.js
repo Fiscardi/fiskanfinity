@@ -472,6 +472,9 @@ function renderActionsAndEvents() {
 
 function renderActionsList(profile) {
   const list = document.getElementById('actionsList');
+  list.style.maxHeight = '65vh';
+  list.style.overflowY = 'auto';
+  list.style.paddingRight = '6px'; // espacio para que la barra de scroll no tape el contenido
   const gameId = currentGameFilterId();
   const actions = profile.actions.filter(a => (a.gameId || null) === gameId);
   if (actions.length === 0) {
@@ -479,11 +482,12 @@ function renderActionsList(profile) {
     return;
   }
   list.innerHTML = actions.map(a => `
-    <div class="action-card" data-action-id="${a.id}">
-      <div class="ac-top">
-        <input class="ac-name" type="text" value="${escapeHtml(a.name)}" data-a-field="name" />
-        <button class="small ghost danger" data-a-remove="${a.id}">✕</button>
-      </div>
+    <details class="action-card" data-action-id="${a.id}">
+      <summary class="ac-top" style="cursor:pointer;">
+        <span class="ac-chevron" style="display:inline-block; width:16px; margin-right:6px; opacity:.75; transition:transform .15s ease;">▶</span>
+        <input class="ac-name" type="text" value="${escapeHtml(a.name)}" data-a-field="name" onclick="event.stopPropagation()" />
+        <button class="small ghost danger" data-a-remove="${a.id}" onclick="event.stopPropagation()">✕</button>
+      </summary>
       <div class="field-row"><span>Texto (usá {user})</span><input type="text" value="${escapeHtml(a.text)}" data-a-field="text" /></div>
       <div class="field-row"><span>Sonido (URL .mp3, opcional)</span><input type="text" value="${escapeHtml(a.soundUrl || '')}" data-a-field="soundUrl" placeholder="https://..." /></div>
       <div class="field-row"><span>Webhook hacia el juego/mod (opcional)</span><input type="text" value="${escapeHtml(a.webhookUrl || '')}" data-a-field="webhookUrl" placeholder="http://localhost:PUERTO/..." /></div>
@@ -546,7 +550,7 @@ function renderActionsList(profile) {
         <input type="number" min="1000" step="500" value="${a.duration}" data-a-field="duration" title="Duración (ms)" />
         <button class="small" data-a-test="${a.id}">Probar</button>
       </div>
-    </div>`).join('');
+    </details>`).join('');
 
   list.querySelectorAll('[data-a-field]').forEach(el => {
     const card = el.closest('.action-card');
@@ -572,6 +576,13 @@ function renderActionsList(profile) {
           await api(`/api/profiles/${profile.id}/events/${ev.id}/test`, { method: 'POST' });
           await api(`/api/profiles/${profile.id}/events/${ev.id}`, { method: 'DELETE' });
         });
+    });
+  });
+  list.querySelectorAll('.action-card').forEach(card => {
+    const chevron = card.querySelector('.ac-chevron');
+    if (!chevron) return;
+    card.addEventListener('toggle', () => {
+      chevron.style.transform = card.open ? 'rotate(90deg)' : 'rotate(0deg)';
     });
   });
 }
