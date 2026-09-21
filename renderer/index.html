@@ -139,6 +139,31 @@
         <button class="small" id="mcSavePlayerBtn">Guardar</button>
       </div>
     </div>
+
+    <div class="mc-card" style="margin-top:16px;">
+      <div class="card-head">
+        <span class="led" id="ytLed"></span>
+        <div class="card-title">YouTube Music (pedidos de canciones)</div>
+        <span class="mc-status" id="ytStatusText">Sin emparejar</span>
+      </div>
+      <p class="av-hint">Necesita la app de YouTube Music (Pear Desktop / th-ch) abierta, con el plugin "Servidor API [Beta]" habilitado. El emparejamiento es una sola vez: te va a aparecer un popup DENTRO de esa app pidiendo permiso, tenés que apretar "Permitir".</p>
+      <div class="mc-form">
+        <input type="number" id="ytPort" placeholder="Puerto (26538)" value="26538" style="width:110px" />
+        <button class="primary" id="ytPairBtn">Emparejar</button>
+      </div>
+      <div class="mc-form" style="margin-top:8px; align-items:center;">
+        <label style="display:flex; align-items:center; gap:6px; white-space:nowrap;">
+          <input type="checkbox" id="ytEnabled" /> Activar comando en el chat
+        </label>
+      </div>
+      <div class="mc-form" style="margin-top:8px;">
+        <input type="text" id="ytCommandPrefix" placeholder="Comando (!play)" value="!play" style="width:110px" />
+        <input type="number" id="ytMinLevel" placeholder="Nivel mínimo" value="0" style="width:110px" />
+        <input type="number" id="ytCooldown" placeholder="Cooldown (seg)" value="15" style="width:110px" />
+        <button class="small" id="ytSaveConfigBtn">Guardar</button>
+      </div>
+      <p class="av-hint" style="margin-top:6px;">Uso en el chat: <code>!play nombre de la canción</code> (o pegando un link de YouTube). Solo lo pueden usar viewers que lleguen al nivel mínimo configurado, con el cooldown indicado por persona.</p>
+    </div>
     <div class="av-head" style="margin-top:16px;">
       <h3>Plantillas listas para usar</h3>
     </div>
