@@ -203,10 +203,26 @@ function createServer({ userDataDir, port = 8420 }) {
   }
 
   async function handleSongRequestCommand(event) {
+    const raw = (event.comment || '').trim();
+
+    // Diagnostico visible EN EL PANEL (no en una consola que no se ve en
+    // el build empaquetado): para cualquier mensaje que arranque con "!",
+    // mostramos exactamente que esta viendo/comparando el servidor. Esto
+    // no depende de que el prefijo o el "enabled" esten bien configurados,
+    // asi que sirve para encontrar justo ESE tipo de error.
+    if (raw.startsWith('!')) {
+      const enabled = !!config.get('ytMusicEnabled');
+      const configuredPrefix = config.get('ytMusicCommandPrefix') || '!play';
+      broadcast('songRequest', {
+        ok: false,
+        requestedBy: event.user?.nickname || event.user?.uniqueId || 'Alguien',
+        error: `[debug] enabled=${enabled} prefijo configurado="${configuredPrefix}" mensaje recibido="${raw}"`
+      });
+    }
+
     if (!config.get('ytMusicEnabled')) return;
 
     const prefix = (config.get('ytMusicCommandPrefix') || '!play').toLowerCase();
-    const raw = (event.comment || '').trim();
     if (!raw.toLowerCase().startsWith(prefix)) return;
 
     const query = raw.slice(prefix.length).trim();
