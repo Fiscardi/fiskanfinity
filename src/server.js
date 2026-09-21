@@ -203,30 +203,67 @@ function createServer({ userDataDir, port = 8420 }) {
   }
 
   async function handleSongRequestCommand(event) {
+    const raw = (event.comment || '').trim();
+
+    // Diagnostico visible EN EL PANEL (no en una consola que no se ve en
+    // el build empaquetado): para cualquier mensaje que arranque con "!",
+    // mostramos exactamente que esta viendo/comparando el servidor. Esto
+    // no depende de que el prefijo o el "enabled" esten bien configurados,
+    // asi que sirve para encontrar justo ESE tipo de error.
+    if (raw.startsWith('!')) {
+      const enabled = !!config.get('ytMusicEnabled');
+      const configuredPrefix = config.get('ytMusicCommandPrefix') || '!play';
+      broadcast('songRequest', {
+        ok: false,
+        requestedBy: event.user?.nickname || event.user?.uniqueId || 'Alguien',
+        error: `[debug] enabled=${enabled} prefijo configurado="${configuredPrefix}" mensaje recibido="${raw}"`
+      });
+    }
+
     if (!config.get('ytMusicEnabled')) return;
 
     const prefix = (config.get('ytMusicCommandPrefix') || '!play').toLowerCase();
-    const raw = (event.comment || '').trim();
     if (!raw.toLowerCase().startsWith(prefix)) return;
 
     const query = raw.slice(prefix.length).trim();
-    if (!query) return;
+    const displayNameEarly = event.user?.nickname || event.user?.uniqueId || 'Alguien';
+    if (!query) {
+      broadcast('songRequest', { ok: false, requestedBy: displayNameEarly, error: 'Escribiste el comando pero sin nombre de canción' });
+      return;
+    }
 
+    // Antes esto se descartaba en silencio: si el nivel no alcanzaba, no
+    // había forma de saberlo desde la app. Ahora lo avisamos igual, para
+    // poder diagnosticar de una si el problema es el nivel del viewer.
     const level = extractLevelFromBadges(event.user?.badges);
     const minLevel = config.get('ytMusicMinLevel') || 0;
-    if (level < minLevel) return;
+    if (level < minLevel) {
+      console.log(`[ytmusic] Pedido de ${displayNameEarly} ignorado: nivel ${level} < mínimo ${minLevel}`);
+      broadcast('songRequest', {
+        ok: false,
+        requestedBy: displayNameEarly,
+        error: `Nivel insuficiente (tiene ${level}, hace falta ${minLevel})`
+      });
+      return;
+    }
 
     const userId = event.user?.uniqueId || event.user?.nickname || 'anon';
     const displayName = event.user?.nickname || userId;
     const now = Date.now();
     const cooldownMs = (config.get('ytMusicCooldownSeconds') ?? 15) * 1000;
-    if (now - (songRequestCooldowns.get(userId) || 0) < cooldownMs) return;
+    if (now - (songRequestCooldowns.get(userId) || 0) < cooldownMs) {
+      console.log(`[ytmusic] Pedido de ${displayName} ignorado: todavía en cooldown`);
+      return; // el cooldown sí queda mudo a propósito, para no llenar el log de spam
+    }
     songRequestCooldowns.set(userId, now);
 
+    console.log(`[ytmusic] Procesando pedido de ${displayName}: "${query}"`);
     try {
       const result = await ytMusicRequestSong(query);
+      console.log(`[ytmusic] OK: se agregó "${result.title}" (${result.videoId})`);
       broadcast('songRequest', { ok: true, title: result.title, requestedBy: displayName });
     } catch (err) {
+      console.error(`[ytmusic] Falló el pedido de ${displayName}:`, err.message);
       broadcast('songRequest', { ok: false, error: err.message, requestedBy: displayName, query });
     }
   }
@@ -790,6 +827,14 @@ let giftsSource = cachedGifts.source;
 
     tiktokConnection.on('chat', event => {
       lastEventAt = Date.now();
+      // Diagnostico temporal: mostramos CUALQUIER comentario que llegue,
+      // sin filtrar nada, para saber si el evento 'chat' esta llegando en
+      // absoluto o si el problema es mas arriba (la conexion misma).
+      broadcast('songRequest', {
+        ok: false,
+        requestedBy: event.user?.nickname || event.user?.uniqueId || '¿?',
+        error: `[debug-chat] comentario recibido: "${(event.comment || '(vacío)')}"`
+      });
       handleChatEvent(event);
       handleSongRequestCommand(event).catch(err => {
         console.error('Error procesando pedido de cancion:', err.message);
