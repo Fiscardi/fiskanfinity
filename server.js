@@ -238,6 +238,13 @@ function createServer({ userDataDir, port = 8420 }) {
     const level = extractLevelFromBadges(event.user?.badges);
     const minLevel = config.get('ytMusicMinLevel') || 0;
     if (level < minLevel) {
+      // Diagnostico extra: mostramos el objeto badges tal cual llega, para
+      // ver por que extractLevelFromBadges no le encuentra el nivel.
+      broadcast('songRequest', {
+        ok: false,
+        requestedBy: displayNameEarly,
+        error: `[debug-badges] ${JSON.stringify(event.user?.badges ?? null)}`
+      });
       console.log(`[ytmusic] Pedido de ${displayNameEarly} ignorado: nivel ${level} < mínimo ${minLevel}`);
       broadcast('songRequest', {
         ok: false,
@@ -827,6 +834,14 @@ let giftsSource = cachedGifts.source;
 
     tiktokConnection.on('chat', event => {
       lastEventAt = Date.now();
+      // Diagnostico temporal: mostramos CUALQUIER comentario que llegue,
+      // sin filtrar nada, para saber si el evento 'chat' esta llegando en
+      // absoluto o si el problema es mas arriba (la conexion misma).
+      broadcast('songRequest', {
+        ok: false,
+        requestedBy: event.user?.nickname || event.user?.uniqueId || '¿?',
+        error: `[debug-chat] comentario recibido: "${(event.comment || '(vacío)')}"`
+      });
       handleChatEvent(event);
       handleSongRequestCommand(event).catch(err => {
         console.error('Error procesando pedido de cancion:', err.message);
