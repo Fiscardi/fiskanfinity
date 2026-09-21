@@ -16,6 +16,11 @@ const crashMasks = require('./crashMasksMemory');
 const metalSlugBombs = require('./metalSlugBombsMemory');
 const metalSlugLives = require('./metalSlugLivesMemory');
 const { gta } = require('./gtaConnector');
+// Libreria externa solo para RESOLVER "nombre de cancion" -> videoId de
+// YouTube (busqueda de texto). El control real de reproduccion (poner la
+// cancion en la cola) va siempre por la API local de la app de YouTube
+// Music, nunca por esta libreria.
+const YouTube = require('youtube-sr').default;
 
 function createServer({ userDataDir, port = 8420 }) {
   const app = express();
@@ -95,6 +100,134 @@ function createServer({ userDataDir, port = 8420 }) {
       await mcRcon.send(command);
     } catch (err) {
       console.error('Comando RCON de Minecraft falló:', err.message);
+    }
+  }
+
+  // ---- YouTube Music (Pear Desktop / th-ch), para pedidos de canciones del chat ----
+  // La app expone una API local (plugin "Servidor API") en 127.0.0.1:<puerto>.
+  // El pareo es una sola vez: pedimos un token con POST /auth/{id}, eso hace
+  // aparecer un popup "Permitir acceso" DENTRO de la app de YouTube Music, y
+  // una vez aceptado nos devuelve un token que guardamos y reusamos siempre
+  // (no hay que volver a aceptar el popup salvo que se revoque el acceso).
+  let ytMusicStatus = { connected: false, error: null };
+  const songRequestCooldowns = new Map(); // uniqueId de TikTok -> timestamp del ultimo pedido
+
+  function ytMusicClientId() {
+    let id = config.get('ytMusicClientId');
+    if (!id) {
+      id = 'fisklive-' + Math.random().toString(36).slice(2, 10);
+      config.set('ytMusicClientId', id);
+    }
+    return id;
+  }
+
+  async function ytMusicPair(port) {
+    const p = Number(port) || config.get('ytMusicPort') || 26538;
+    const id = ytMusicClientId();
+    let resp;
+    try {
+      resp = await fetch(`http://127.0.0.1:${p}/auth/${id}`, { method: 'POST' });
+    } catch (err) {
+      ytMusicStatus = { connected: false, error: 'No se pudo conectar a YouTube Music en ese puerto (¿está abierta la app y el plugin "Servidor API" habilitado?)' };
+      throw new Error(ytMusicStatus.error);
+    }
+    if (resp.status === 403) {
+      ytMusicStatus = { connected: false, error: 'Se rechazó el pedido de acceso en la app de YouTube Music' };
+      throw new Error(ytMusicStatus.error);
+    }
+    if (!resp.ok) {
+      ytMusicStatus = { connected: false, error: `YouTube Music respondió con error ${resp.status}` };
+      throw new Error(ytMusicStatus.error);
+    }
+    const data = await resp.json();
+    config.set('ytMusicPort', p);
+    config.set('ytMusicToken', data.accessToken);
+    ytMusicStatus = { connected: true, error: null };
+    return ytMusicStatus;
+  }
+
+  async function ytMusicCall(path, method = 'GET', body) {
+    const port = config.get('ytMusicPort') || 26538;
+    const token = config.get('ytMusicToken');
+    if (!token) {
+      throw new Error('YouTube Music todavía no está emparejado');
+    }
+    const resp = await fetch(`http://127.0.0.1:${port}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (resp.status === 401 || resp.status === 403) {
+      ytMusicStatus = { connected: false, error: 'El token venció o fue revocado, hay que volver a emparejar' };
+      throw new Error(ytMusicStatus.error);
+    }
+    if (!resp.ok && resp.status !== 204) {
+      throw new Error(`YouTube Music respondió con error ${resp.status}`);
+    }
+    if (resp.status === 204) return null;
+    const text = await resp.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  // Extrae el videoId directo si mandaron un link de YouTube/YouTube Music,
+  // asi evitamos una busqueda de texto innecesaria (y mas confiable: no
+  // depende de que la busqueda encuentre justo ESE video).
+  function extractYoutubeVideoId(text) {
+    const match = String(text).match(/(?:youtu\.be\/|[?&]v=|\/shorts\/)([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : null;
+  }
+
+  async function ytMusicRequestSong(query) {
+    const directId = extractYoutubeVideoId(query);
+    let videoId = directId;
+    let title = query;
+
+    if (!videoId) {
+      const results = await YouTube.search(query, { limit: 1, type: 'video' });
+      if (!results || !results.length) {
+        throw new Error('No encontré ninguna canción con ese nombre');
+      }
+      videoId = results[0].id;
+      title = results[0].title || query;
+    }
+
+    await ytMusicCall('/api/v1/queue', 'POST', {
+      videoId,
+      insertPosition: 'INSERT_AFTER_CURRENT_VIDEO'
+    });
+
+    return { videoId, title };
+  }
+
+  async function handleSongRequestCommand(event) {
+    if (!config.get('ytMusicEnabled')) return;
+
+    const prefix = (config.get('ytMusicCommandPrefix') || '!play').toLowerCase();
+    const raw = (event.comment || '').trim();
+    if (!raw.toLowerCase().startsWith(prefix)) return;
+
+    const query = raw.slice(prefix.length).trim();
+    if (!query) return;
+
+    const level = extractLevelFromBadges(event.user?.badges);
+    const minLevel = config.get('ytMusicMinLevel') || 0;
+    if (level < minLevel) return;
+
+    const userId = event.user?.uniqueId || event.user?.nickname || 'anon';
+    const displayName = event.user?.nickname || userId;
+    const now = Date.now();
+    const cooldownMs = (config.get('ytMusicCooldownSeconds') ?? 15) * 1000;
+    if (now - (songRequestCooldowns.get(userId) || 0) < cooldownMs) return;
+    songRequestCooldowns.set(userId, now);
+
+    try {
+      const result = await ytMusicRequestSong(query);
+      broadcast('songRequest', { ok: true, title: result.title, requestedBy: displayName });
+    } catch (err) {
+      broadcast('songRequest', { ok: false, error: err.message, requestedBy: displayName, query });
     }
   }
 
@@ -655,7 +788,13 @@ let giftsSource = cachedGifts.source;
 
     tiktokConnection.on('like', event => { lastEventAt = Date.now(); handleLikeEvent(event); });
 
-    tiktokConnection.on('chat', event => { lastEventAt = Date.now(); handleChatEvent(event); });
+    tiktokConnection.on('chat', event => {
+      lastEventAt = Date.now();
+      handleChatEvent(event);
+      handleSongRequestCommand(event).catch(err => {
+        console.error('Error procesando pedido de cancion:', err.message);
+      });
+    });
 
     tiktokConnection.on('roomUserSeq', event => {
       lastEventAt = Date.now();
@@ -714,6 +853,51 @@ let giftsSource = cachedGifts.source;
   app.post('/api/minecraft/player-name', (req, res) => {
     config.set('mcPlayerName', (req.body.playerName || '').trim());
     res.json({ ok: true });
+  });
+
+  // ---- YouTube Music (pedidos de canciones por chat) ----
+  app.get('/api/ytmusic/status', (req, res) => res.json({
+    ...ytMusicStatus,
+    paired: !!config.get('ytMusicToken')
+  }));
+
+  app.get('/api/ytmusic/config', (req, res) => res.json({
+    enabled: !!config.get('ytMusicEnabled'),
+    port: config.get('ytMusicPort') || 26538,
+    commandPrefix: config.get('ytMusicCommandPrefix') || '!play',
+    minLevel: config.get('ytMusicMinLevel') || 0,
+    cooldownSeconds: config.get('ytMusicCooldownSeconds') ?? 15,
+    paired: !!config.get('ytMusicToken')
+  }));
+
+  app.post('/api/ytmusic/config', (req, res) => {
+    const { enabled, port, commandPrefix, minLevel, cooldownSeconds } = req.body;
+    if (enabled !== undefined) config.set('ytMusicEnabled', !!enabled);
+    if (port) config.set('ytMusicPort', Number(port) || 26538);
+    if (commandPrefix) config.set('ytMusicCommandPrefix', String(commandPrefix).trim());
+    if (minLevel !== undefined) config.set('ytMusicMinLevel', Number(minLevel) || 0);
+    if (cooldownSeconds !== undefined) config.set('ytMusicCooldownSeconds', Number(cooldownSeconds) || 0);
+    res.json({ ok: true });
+  });
+
+  // Dispara el popup de "Permitir acceso" dentro de la app de YouTube Music.
+  // Solo hace falta una vez; el token queda guardado para siempre.
+  app.post('/api/ytmusic/pair', async (req, res) => {
+    try {
+      const status = await ytMusicPair(req.body.port);
+      res.json(status);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/ytmusic/test', async (req, res) => {
+    try {
+      const result = await ytMusicRequestSong(req.body.query || 'Never Gonna Give You Up Rick Astley');
+      res.json({ ok: true, ...result });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // ---- Plantillas ----
