@@ -15,7 +15,12 @@ const crashLives = require('./crashLivesMemory');
 const crashMasks = require('./crashMasksMemory');
 const metalSlugBombs = require('./metalSlugBombsMemory');
 const metalSlugLives = require('./metalSlugLivesMemory');
-const { handleGtaGift } = require('./gtaGiftCatalog');
+const { gta } = require('./gtaConnector');
+// Libreria externa solo para RESOLVER "nombre de cancion" -> videoId de
+// YouTube (busqueda de texto). El control real de reproduccion (poner la
+// cancion en la cola) va siempre por la API local de la app de YouTube
+// Music, nunca por esta libreria.
+const YouTube = require('youtube-sr').default;
 
 function createServer({ userDataDir, port = 8420 }) {
   const app = express();
@@ -95,6 +100,155 @@ function createServer({ userDataDir, port = 8420 }) {
       await mcRcon.send(command);
     } catch (err) {
       console.error('Comando RCON de Minecraft falló:', err.message);
+    }
+  }
+
+  // ---- YouTube Music (Pear Desktop / th-ch), para pedidos de canciones del chat ----
+  // La app expone una API local (plugin "Servidor API") en 127.0.0.1:<puerto>.
+  // El pareo es una sola vez: pedimos un token con POST /auth/{id}, eso hace
+  // aparecer un popup "Permitir acceso" DENTRO de la app de YouTube Music, y
+  // una vez aceptado nos devuelve un token que guardamos y reusamos siempre
+  // (no hay que volver a aceptar el popup salvo que se revoque el acceso).
+  let ytMusicStatus = { connected: false, error: null };
+  const songRequestCooldowns = new Map(); // uniqueId de TikTok -> timestamp del ultimo pedido
+
+  function ytMusicClientId() {
+    let id = config.get('ytMusicClientId');
+    if (!id) {
+      id = 'fisklive-' + Math.random().toString(36).slice(2, 10);
+      config.set('ytMusicClientId', id);
+    }
+    return id;
+  }
+
+  async function ytMusicPair(port) {
+    const p = Number(port) || config.get('ytMusicPort') || 26538;
+    const id = ytMusicClientId();
+    let resp;
+    try {
+      resp = await fetch(`http://127.0.0.1:${p}/auth/${id}`, { method: 'POST' });
+    } catch (err) {
+      ytMusicStatus = { connected: false, error: 'No se pudo conectar a YouTube Music en ese puerto (¿está abierta la app y el plugin "Servidor API" habilitado?)' };
+      throw new Error(ytMusicStatus.error);
+    }
+    if (resp.status === 403) {
+      ytMusicStatus = { connected: false, error: 'Se rechazó el pedido de acceso en la app de YouTube Music' };
+      throw new Error(ytMusicStatus.error);
+    }
+    if (!resp.ok) {
+      ytMusicStatus = { connected: false, error: `YouTube Music respondió con error ${resp.status}` };
+      throw new Error(ytMusicStatus.error);
+    }
+    const data = await resp.json();
+    config.set('ytMusicPort', p);
+    config.set('ytMusicToken', data.accessToken);
+    ytMusicStatus = { connected: true, error: null };
+    return ytMusicStatus;
+  }
+
+  async function ytMusicCall(path, method = 'GET', body) {
+    const port = config.get('ytMusicPort') || 26538;
+    const token = config.get('ytMusicToken');
+    if (!token) {
+      throw new Error('YouTube Music todavía no está emparejado');
+    }
+    const resp = await fetch(`http://127.0.0.1:${port}${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: body ? JSON.stringify(body) : undefined
+    });
+    if (resp.status === 401 || resp.status === 403) {
+      ytMusicStatus = { connected: false, error: 'El token venció o fue revocado, hay que volver a emparejar' };
+      throw new Error(ytMusicStatus.error);
+    }
+    if (!resp.ok && resp.status !== 204) {
+      throw new Error(`YouTube Music respondió con error ${resp.status}`);
+    }
+    if (resp.status === 204) return null;
+    const text = await resp.text();
+    return text ? JSON.parse(text) : null;
+  }
+
+  // Extrae el videoId directo si mandaron un link de YouTube/YouTube Music,
+  // asi evitamos una busqueda de texto innecesaria (y mas confiable: no
+  // depende de que la busqueda encuentre justo ESE video).
+  function extractYoutubeVideoId(text) {
+    const match = String(text).match(/(?:youtu\.be\/|[?&]v=|\/shorts\/)([a-zA-Z0-9_-]{11})/);
+    return match ? match[1] : null;
+  }
+
+  async function ytMusicRequestSong(query) {
+    const directId = extractYoutubeVideoId(query);
+    let videoId = directId;
+    let title = query;
+
+    if (!videoId) {
+      const results = await YouTube.search(query, { limit: 1, type: 'video' });
+      if (!results || !results.length) {
+        throw new Error('No encontré ninguna canción con ese nombre');
+      }
+      videoId = results[0].id;
+      title = results[0].title || query;
+    }
+
+    await ytMusicCall('/api/v1/queue', 'POST', {
+      videoId,
+      insertPosition: 'INSERT_AFTER_CURRENT_VIDEO'
+    });
+
+    return { videoId, title };
+  }
+
+  async function handleSongRequestCommand(event) {
+    if (!config.get('ytMusicEnabled')) return;
+
+    const prefix = (config.get('ytMusicCommandPrefix') || '!play').toLowerCase();
+    const raw = (event.comment || '').trim();
+    if (!raw.toLowerCase().startsWith(prefix)) return;
+
+    const query = raw.slice(prefix.length).trim();
+    const displayNameEarly = event.user?.nickname || event.user?.uniqueId || 'Alguien';
+    if (!query) {
+      broadcast('songRequest', { ok: false, requestedBy: displayNameEarly, error: 'Escribiste el comando pero sin nombre de canción' });
+      return;
+    }
+
+    // Antes esto se descartaba en silencio: si el nivel no alcanzaba, no
+    // había forma de saberlo desde la app. Ahora lo avisamos igual, para
+    // poder diagnosticar de una si el problema es el nivel del viewer.
+    const level = extractLevelFromBadges(event.user?.badges);
+    const minLevel = config.get('ytMusicMinLevel') || 0;
+    if (level < minLevel) {
+      console.log(`[ytmusic] Pedido de ${displayNameEarly} ignorado: nivel ${level} < mínimo ${minLevel}`);
+      broadcast('songRequest', {
+        ok: false,
+        requestedBy: displayNameEarly,
+        error: `Nivel insuficiente (tiene ${level}, hace falta ${minLevel})`
+      });
+      return;
+    }
+
+    const userId = event.user?.uniqueId || event.user?.nickname || 'anon';
+    const displayName = event.user?.nickname || userId;
+    const now = Date.now();
+    const cooldownMs = (config.get('ytMusicCooldownSeconds') ?? 15) * 1000;
+    if (now - (songRequestCooldowns.get(userId) || 0) < cooldownMs) {
+      console.log(`[ytmusic] Pedido de ${displayName} ignorado: todavía en cooldown`);
+      return; // el cooldown sí queda mudo a propósito, para no llenar el log de spam
+    }
+    songRequestCooldowns.set(userId, now);
+
+    console.log(`[ytmusic] Procesando pedido de ${displayName}: "${query}"`);
+    try {
+      const result = await ytMusicRequestSong(query);
+      console.log(`[ytmusic] OK: se agregó "${result.title}" (${result.videoId})`);
+      broadcast('songRequest', { ok: true, title: result.title, requestedBy: displayName });
+    } catch (err) {
+      console.error(`[ytmusic] Falló el pedido de ${displayName}:`, err.message);
+      broadcast('songRequest', { ok: false, error: err.message, requestedBy: displayName, query });
     }
   }
 
@@ -321,8 +475,78 @@ let giftsSource = cachedGifts.source;
        if (action.minecraftCommand) {
          const mcVars = { ...vars, player: config.get('mcPlayerName') || '' };
          sendMinecraftCommand(resolveText(action.minecraftCommand, mcVars));
+         
        }
-     }
+     
+         // ---------- GTA V (FiskLiveGTA mod, via TCP local puerto 8421) ----------
+    // Todas estas llamadas son async pero no bloqueamos fireAction esperandolas;
+    // si falla (GTA cerrado, mod no cargado), solo lo logueamos, no rompe el resto.
+
+    if (action.gtaSpawnVehicle) {
+      if (action.gtaReplaceVehicle) {
+        gta.spawnVehicleMilestone(action.gtaSpawnVehicle).catch(() => {});
+      } else {
+        gta.spawnVehicle(action.gtaSpawnVehicle).catch(() => {});
+      }
+    }
+    if (action.gtaGiveWeapon) {
+      gta.giveWeapon(action.gtaGiveWeapon).catch(() => {});
+    }
+    if (action.gtaWanted !== undefined && action.gtaWanted !== '') {
+      gta.setWanted(Number(action.gtaWanted)).catch(() => {});
+    }
+    if (action.gtaHealth !== undefined && action.gtaHealth !== '') {
+      gta.setHealth(Number(action.gtaHealth)).catch(() => {});
+    }
+    if (action.gtaArmor !== undefined && action.gtaArmor !== '') {
+      gta.setArmor(Number(action.gtaArmor)).catch(() => {});
+    }
+    if (action.gtaExplode) {
+      gta.explodeNearby().catch(() => {});
+    }
+    if (action.gtaWeather) {
+      gta.setWeather(action.gtaWeather).catch(() => {});
+    }
+    if (action.gtaTeleport) {
+      gta.teleportRandom().catch(() => {});
+    }
+    if (action.gtaRagdoll) {
+      gta.ragdoll().catch(() => {});
+    }
+    if (action.gtaChaosCount) {
+      gta.spawnChaos(Number(action.gtaChaosCount)).catch(() => {});
+    }
+    if (action.gtaBoulderCount) {
+      gta.spawnBoulders(Number(action.gtaBoulderCount)).catch(() => {});
+    }
+    if (action.gtaGiantBallCount) {
+      gta.spawnGiantBalls(Number(action.gtaGiantBallCount)).catch(() => {});
+    }
+    if (action.gtaCarRainSeconds) {
+      gta.carRain(Number(action.gtaCarRainSeconds)).catch(() => {});
+    }
+    if (action.gtaBreakVehicle) {
+      gta.breakVehicle().catch(() => {});
+    }
+    if (action.gtaBlindingFog) {
+      gta.blindingFog(Number(action.gtaBlindingFog)).catch(() => {});
+    }
+    if (action.gtaApocalypse) {
+      gta.apocalypse(Number(action.gtaApocalypse)).catch(() => {});
+    }
+    if (action.gtaBlackHole) {
+      gta.blackHole(Number(action.gtaBlackHole)).catch(() => {});
+    }
+    if (action.gtaKillerMonkeys) {
+      gta.killerMonkeys(Number(action.gtaKillerMonkeys)).catch(() => {});
+    }
+    if (action.gtaChiliadStart) {
+      gta.chiliadStart().catch(() => {});
+    }
+    if (action.gtaChiliadStop) {
+      gta.chiliadStop().catch(() => {});
+    }
+  }
 
   // Revisa los eventos configurados del perfil activo y dispara los que matcheen
   function checkEvents(triggerType, vars) {
@@ -333,7 +557,12 @@ let giftsSource = cachedGifts.source;
         const nameOk = !ev.giftName || (vars.gift || '').toLowerCase() === ev.giftName.toLowerCase();
         if (nameOk && vars.diamonds >= (ev.minCoins || 1)) fireAction(profile, ev.actionId, vars);
       } else if (triggerType === 'like') {
-        if (vars.total >= (ev.minLikes || 100) && vars.total - vars.delta < (ev.minLikes || 100)) {
+        // Dispara cada vez que se cruza un multiplo del paso configurado
+        // (ej. minLikes=100 -> dispara en 100, 200, 300, etc, no solo la primera vez)
+        const step = ev.minLikes || 100;
+        const before = Math.floor((vars.total - vars.delta) / step);
+        const after = Math.floor(vars.total / step);
+        if (after > before) {
           fireAction(profile, ev.actionId, vars);
         }
       } else {
@@ -344,20 +573,36 @@ let giftsSource = cachedGifts.source;
   }
 
   let lastMilestoneSent = 0;
+  const giftDebugLogFile = path.join(userDataDir, 'gift-debug.log');
+
+  function logGiftDebug(event) {
+    try {
+      const line = `[${new Date().toISOString()}] giftName="${event.giftName}" giftId=${event.giftId} giftType=${event.giftType} diamondCount=${event.diamondCount} repeatCount=${event.repeatCount} repeatEnd=${event.repeatEnd}\n`;
+      fs.appendFileSync(giftDebugLogFile, line, 'utf-8');
+    } catch (err) { /* noop */ }
+  }
 
   function handleGiftEvent(event) {
+    logGiftDebug(event);
+
     const profile = store.getActive();
     const cfg = profile.overlays.alert;
-    // Mientras dura una racha de regalos, solo procesamos cuando termina (repeatEnd)
-    if (!event.repeatEnd) return;
+
+    // Solo los regalos "combeables" (giftType === 1, como la rosa, que se
+    // pueden mandar en racha) usan repeatEnd para avisar que la racha
+    // terminó — hay que esperarlo para no contar el combo de a poquito.
+    // Los regalos NO combeables (la mayoría) llegan en un solo evento, y
+    // según la versión de la librería de TikTok, ese evento puede traer
+    // repeatEnd en false/undefined porque no hay ninguna racha que cerrar.
+    // Si esperáramos ese flag ahí, esos regalos nunca se procesarían -
+    // que es justo lo que pasaba con el apocalipsis (y cualquier otra
+    // acción atada a un regalo no combeable).
+    const isStreakable = event.giftType === 1;
+    if (isStreakable && !event.repeatEnd) return;
 
     const diamonds = (event.diamondCount || 0) * (event.repeatCount || 1);
     const displayName = event.user?.nickname || event.user?.uniqueId || 'Alguien';
     const giftName = event.giftName || 'un regalo';
-    // GTA V Interactive
-handleGtaGift(giftName).catch(err => {
-  console.error('Error GTA Gift:', err);
-});
 
     learnGiftFromEvent(event.giftId, event.giftName, event.diamondCount || 0);
 
@@ -564,7 +809,13 @@ handleGtaGift(giftName).catch(err => {
 
     tiktokConnection.on('like', event => { lastEventAt = Date.now(); handleLikeEvent(event); });
 
-    tiktokConnection.on('chat', event => { lastEventAt = Date.now(); handleChatEvent(event); });
+    tiktokConnection.on('chat', event => {
+      lastEventAt = Date.now();
+      handleChatEvent(event);
+      handleSongRequestCommand(event).catch(err => {
+        console.error('Error procesando pedido de cancion:', err.message);
+      });
+    });
 
     tiktokConnection.on('roomUserSeq', event => {
       lastEventAt = Date.now();
@@ -623,6 +874,51 @@ handleGtaGift(giftName).catch(err => {
   app.post('/api/minecraft/player-name', (req, res) => {
     config.set('mcPlayerName', (req.body.playerName || '').trim());
     res.json({ ok: true });
+  });
+
+  // ---- YouTube Music (pedidos de canciones por chat) ----
+  app.get('/api/ytmusic/status', (req, res) => res.json({
+    ...ytMusicStatus,
+    paired: !!config.get('ytMusicToken')
+  }));
+
+  app.get('/api/ytmusic/config', (req, res) => res.json({
+    enabled: !!config.get('ytMusicEnabled'),
+    port: config.get('ytMusicPort') || 26538,
+    commandPrefix: config.get('ytMusicCommandPrefix') || '!play',
+    minLevel: config.get('ytMusicMinLevel') || 0,
+    cooldownSeconds: config.get('ytMusicCooldownSeconds') ?? 15,
+    paired: !!config.get('ytMusicToken')
+  }));
+
+  app.post('/api/ytmusic/config', (req, res) => {
+    const { enabled, port, commandPrefix, minLevel, cooldownSeconds } = req.body;
+    if (enabled !== undefined) config.set('ytMusicEnabled', !!enabled);
+    if (port) config.set('ytMusicPort', Number(port) || 26538);
+    if (commandPrefix) config.set('ytMusicCommandPrefix', String(commandPrefix).trim());
+    if (minLevel !== undefined) config.set('ytMusicMinLevel', Number(minLevel) || 0);
+    if (cooldownSeconds !== undefined) config.set('ytMusicCooldownSeconds', Number(cooldownSeconds) || 0);
+    res.json({ ok: true });
+  });
+
+  // Dispara el popup de "Permitir acceso" dentro de la app de YouTube Music.
+  // Solo hace falta una vez; el token queda guardado para siempre.
+  app.post('/api/ytmusic/pair', async (req, res) => {
+    try {
+      const status = await ytMusicPair(req.body.port);
+      res.json(status);
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/ytmusic/test', async (req, res) => {
+    try {
+      const result = await ytMusicRequestSong(req.body.query || 'Never Gonna Give You Up Rick Astley');
+      res.json({ ok: true, ...result });
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
   });
 
   // ---- Plantillas ----
@@ -890,6 +1186,13 @@ handleGtaGift(giftName).catch(err => {
       const count = Number(body.count) || Math.floor(Math.random() * 200) + 5;
       broadcast('viewers', { count });
     }
+    res.json({ ok: true });
+  });
+
+  // Recibe el estado del desafio Monte Chiliad desde el mod de GTA (FiskLiveGTA.dll)
+  // y lo reenvia por WebSocket a cualquier overlay conectado.
+  app.post('/api/gta/chiliad-status', (req, res) => {
+    broadcast('chiliadChallenge', req.body || {});
     res.json({ ok: true });
   });
 
