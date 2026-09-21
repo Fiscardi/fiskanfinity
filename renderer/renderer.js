@@ -434,6 +434,13 @@ function logIncoming(msg) {
       if (msg.payload.connected) pushLog('🟢', 'Conectado', '@' + msg.payload.username);
       else if (msg.payload.error) pushLog('🔴', 'Estado', msg.payload.error);
       break;
+    case 'songRequest':
+      if (msg.payload.ok) {
+        pushLog('🎵', `Pedido de ${msg.payload.requestedBy}`, msg.payload.title);
+      } else {
+        pushLog('⚠️', `Pedido de ${msg.payload.requestedBy} falló`, msg.payload.error || msg.payload.query || '');
+      }
+      break;
     default:
       break;
   }
