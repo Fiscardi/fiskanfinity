@@ -548,6 +548,23 @@ function renderActionsList(profile) {
         <div class="field-row"><span>GTA: Iniciar desafío Monte Chiliad (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaChiliadStart || 0}" data-a-field="gtaChiliadStart" placeholder="1 o 0" /></div>
         <div class="field-row"><span>GTA: Detener desafío Monte Chiliad (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaChiliadStop || 0}" data-a-field="gtaChiliadStop" placeholder="1 o 0" /></div>
       </details>
+
+      <details class="field-group" style="margin:8px 0; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px;">
+        <summary style="cursor:pointer; padding:6px 0; font-weight:600; color:var(--cyan,#4dd0e1); user-select:none;">R.E.P.O.</summary>
+        <div class="field-row"><span>R.E.P.O.: Apagón de luces por X segundos (0 = no activar)</span><input type="number" step="1" min="0" value="${a.repoBlackout || 0}" data-a-field="repoBlackout" placeholder="8" /></div>
+        <div class="field-row"><span>R.E.P.O.: Velocidad del tiempo (0.3 = cámara lenta, 2 = rápido, 0 = no activar)</span><input type="number" step="0.1" min="0" max="3" value="${a.repoTimeScale || 0}" data-a-field="repoTimeScale" placeholder="0.3" /></div>
+        <div class="field-row"><span>R.E.P.O.: Duración de la velocidad del tiempo (segundos)</span><input type="number" step="1" min="1" value="${a.repoTimeScaleSeconds || 10}" data-a-field="repoTimeScaleSeconds" placeholder="10" /></div>
+        <div class="field-row"><span>R.E.P.O.: Gravedad (elegí un preset o dejá en ninguna)</span>
+          <select data-a-field="repoGravity" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px;">
+            <option value="" ${!a.repoGravity ? 'selected' : ''}>Ninguna</option>
+            <option value="liviana" ${a.repoGravity === 'liviana' ? 'selected' : ''}>Liviana</option>
+            <option value="pesada" ${a.repoGravity === 'pesada' ? 'selected' : ''}>Pesada</option>
+            <option value="invertida" ${a.repoGravity === 'invertida' ? 'selected' : ''}>Invertida</option>
+          </select>
+        </div>
+        <div class="field-row"><span>R.E.P.O.: Duración de la gravedad (segundos)</span><input type="number" step="1" min="1" value="${a.repoGravitySeconds || 15}" data-a-field="repoGravitySeconds" placeholder="15" /></div>
+        <div class="field-row"><span>R.E.P.O.: Restaurar luces ya (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.repoRestoreLighting || 0}" data-a-field="repoRestoreLighting" placeholder="1 o 0" /></div>
+      </details>
       <div class="ac-row2">
         <select data-a-field="webhookMethod" title="Método del webhook" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px;">
           <option value="POST" ${(a.webhookMethod || 'POST') === 'POST' ? 'selected' : ''}>POST</option>
