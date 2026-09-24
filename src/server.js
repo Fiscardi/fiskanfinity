@@ -16,6 +16,7 @@ const crashMasks = require('./crashMasksMemory');
 const metalSlugBombs = require('./metalSlugBombsMemory');
 const metalSlugLives = require('./metalSlugLivesMemory');
 const { gta } = require('./gtaConnector');
+const { repo } = require('./repoConnector');
 // Libreria externa solo para RESOLVER "nombre de cancion" -> videoId de
 // YouTube (busqueda de texto). El control real de reproduccion (poner la
 // cancion en la cola) va siempre por la API local de la app de YouTube
@@ -238,6 +239,13 @@ function createServer({ userDataDir, port = 8420 }) {
     const level = extractLevelFromBadges(event.user?.badges);
     const minLevel = config.get('ytMusicMinLevel') || 0;
     if (level < minLevel) {
+      // Diagnostico extra: mostramos el objeto badges tal cual llega, para
+      // ver por que extractLevelFromBadges no le encuentra el nivel.
+      broadcast('songRequest', {
+        ok: false,
+        requestedBy: displayNameEarly,
+        error: `[debug-badges] ${JSON.stringify(event.user?.badges ?? null)}`
+      });
       console.log(`[ytmusic] Pedido de ${displayNameEarly} ignorado: nivel ${level} < mínimo ${minLevel}`);
       broadcast('songRequest', {
         ok: false,
@@ -561,6 +569,22 @@ let giftsSource = cachedGifts.source;
     }
     if (action.gtaChiliadStop) {
       gta.chiliadStop().catch(() => {});
+    }
+
+    // ---------- R.E.P.O. (mod FiskLiveREPO, via TCP local puerto 8422) ----------
+    // Igual que GTA: no esperamos la respuesta y, si el juego esta cerrado,
+    // el conector solo lo loguea y no rompe el resto de la accion.
+    if (action.repoBlackout) {
+      repo.blackout(Number(action.repoBlackout)).catch(() => {});
+    }
+    if (action.repoTimeScale) {
+      repo.timeScale(Number(action.repoTimeScale), Number(action.repoTimeScaleSeconds) || 10).catch(() => {});
+    }
+    if (action.repoGravity) {
+      repo.gravity(action.repoGravity, Number(action.repoGravitySeconds) || 15).catch(() => {});
+    }
+    if (action.repoRestoreLighting) {
+      repo.restoreLighting().catch(() => {});
     }
   }
 
