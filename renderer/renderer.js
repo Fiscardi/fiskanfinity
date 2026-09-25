@@ -564,6 +564,10 @@ function renderActionsList(profile) {
         </div>
         <div class="field-row"><span>R.E.P.O.: Duración de la gravedad (segundos)</span><input type="number" step="1" min="1" value="${a.repoGravitySeconds || 15}" data-a-field="repoGravitySeconds" placeholder="15" /></div>
         <div class="field-row"><span>R.E.P.O.: Restaurar luces ya (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.repoRestoreLighting || 0}" data-a-field="repoRestoreLighting" placeholder="1 o 0" /></div>
+        <div class="field-row"><span>R.E.P.O.: Spawnear enemigo (nombre o parte del nombre, "random" = al azar, vacío = no)</span><input type="text" value="${escapeHtml(a.repoSpawnEnemy || '')}" data-a-field="repoSpawnEnemy" placeholder="Puppet, Reaper, random..." /></div>
+        <div class="field-row"><span>R.E.P.O.: Cantidad de enemigos (más de 1 = horda)</span><input type="number" step="1" min="1" max="20" value="${a.repoEnemyCount || 1}" data-a-field="repoEnemyCount" placeholder="1" /></div>
+        <div class="field-row"><span>R.E.P.O.: Spawnear arma o item (nombre, "random_weapon" = arma al azar, vacío = no)</span><input type="text" value="${escapeHtml(a.repoSpawnItem || '')}" data-a-field="repoSpawnItem" placeholder="shotgun, random_weapon..." /></div>
+        <div class="field-row"><span>R.E.P.O.: Cantidad de armas o items</span><input type="number" step="1" min="1" max="20" value="${a.repoItemCount || 1}" data-a-field="repoItemCount" placeholder="1" /></div>
       </details>
       <div class="ac-row2">
         <select data-a-field="webhookMethod" title="Método del webhook" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px;">
