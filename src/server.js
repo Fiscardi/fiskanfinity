@@ -586,6 +586,12 @@ let giftsSource = cachedGifts.source;
     if (action.repoRestoreLighting) {
       repo.restoreLighting().catch(() => {});
     }
+    if (action.repoSpawnEnemy) {
+      repo.spawnEnemy(action.repoSpawnEnemy, Number(action.repoEnemyCount) || 1).catch(() => {});
+    }
+    if (action.repoSpawnItem) {
+      repo.spawnItem(action.repoSpawnItem, Number(action.repoItemCount) || 1).catch(() => {});
+    }
   }
 
   // Revisa los eventos configurados del perfil activo y dispara los que matcheen

@@ -62,7 +62,20 @@ const repo = {
 
   // Vuelve las luces a la normalidad
   restoreLighting: () =>
-    send({ action: 'restore_lighting' })
+    send({ action: 'restore_lighting' }),
+
+  // Spawnea enemigo(s) cerca del jugador. enemy = nombre (o parte del nombre)
+  // o "random" para uno al azar. Si count > 1 es una horda.
+  spawnEnemy: (enemy, count) => {
+    const n = Math.round(Number(count)) || 1;
+    if (n > 1) return send({ action: 'enemy_horde', enemy: String(enemy), count: n });
+    return send({ action: 'spawn_enemy', enemy: String(enemy) });
+  },
+
+  // Spawnea un item/arma cerca del jugador. name = nombre (o parte del nombre),
+  // "random" = item al azar, "random_weapon" = arma al azar.
+  spawnItem: (name, count) =>
+    send({ action: 'spawn_item', name: String(name), count: Math.round(Number(count)) || 1 })
 };
 
 module.exports = { repo };
