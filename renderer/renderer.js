@@ -477,6 +477,136 @@ function renderActionsAndEvents() {
   renderEventsTable(profile);
 }
 
+// ---------- R.E.P.O.: catalogos para los desplegables ----------
+// Sacados de los logs del juego (50 enemigos, 59 items). El valor guardado es el
+// nombre interno exacto, que el mod FiskLiveREPO reconoce sin ambiguedad.
+const REPO_ENEMY_GROUPS = [
+  { label: 'Al azar', options: [['random', 'Enemigo al azar (uno individual distinto cada vez)']] },
+  {
+    label: 'Enemigos individuales',
+    options: [
+      'Tricycle', 'Tick', 'Elsa', 'Ceiling Eye', 'Gnome', 'Duck', 'Slow Mouth', 'Thin Man',
+      'Birthday Boy', 'Valuable Thrower', 'Animal', 'Upscream', 'Hidden', 'Tumbler', 'Bowtie',
+      'Floater', 'Bang', 'Spinny', 'Heart Hugger', 'Head Grabber', 'Oogly', 'Head',
+      'Bomb Thrower', 'Runner', 'Robe', 'Beamer', 'Shadow', 'Slow Walker', 'Hunter'
+    ].map(n => ['Enemy - ' + n, n])
+  },
+  {
+    label: 'Grupos (vienen varios juntos)',
+    options: [
+      '2 Heart Huggers', '2 Hidden', '2 Spinny', '3 Animals', '3 Birthday Boys', '3 Bowties',
+      '3 Elsas', '3 Floaters', '3 Head Grabbers', '3 Ooglies', '3 Tricycles', '3 Tumblers',
+      '3 Upscreams', '3 Valuable Throwers', '4 Ceiling Eyes', '4 Ducks', '4 Slow Mouths',
+      '4 Thin Men', '5 Ticks', '6 Bangs', '10 Gnomes'
+    ].map(n => ['Enemy Group - ' + n, n])
+  }
+];
+
+const REPO_ITEM_GROUPS = [
+  {
+    label: 'Al azar',
+    options: [
+      ['random_weapon', 'Arma al azar (pistola, cuerpo a cuerpo, granada o mina)'],
+      ['random', 'Item al azar (cualquiera)']
+    ]
+  },
+  {
+    label: 'Armas de fuego',
+    options: [
+      ['Item Gun Handgun', 'Gun'], ['Item Gun Shotgun', 'Shotgun'], ['Item Gun Tranq', 'Tranq Gun'],
+      ['Item Gun Stun', 'Boltzap'], ['Item Gun Shockwave', 'Pulse Pistol'], ['Item Gun Laser', 'Photon Blaster']
+    ]
+  },
+  {
+    label: 'Cuerpo a cuerpo',
+    options: [
+      ['Item Melee Sword', 'Sword'], ['Item Melee Baseball Bat', 'Baseball Bat'],
+      ['Item Melee Frying Pan', 'Frying Pan'], ['Item Melee Sledge Hammer', 'Sledge Hammer'],
+      ['Item Melee Inflatable Hammer', 'Inflatable Hammer'], ['Item Melee Stun Baton', 'Prodzap']
+    ]
+  },
+  {
+    label: 'Granadas y minas',
+    options: [
+      ['Item Grenade Explosive', 'Grenade'], ['Item Grenade Stun', 'Stun Grenade'],
+      ['Item Grenade Shockwave', 'Shockwave Grenade'], ['Item Grenade Human', 'Human Grenade'],
+      ['Item Grenade Duct Taped', 'Duct Taped Grenades'], ['Item Mine Explosive', 'Explosive Mine'],
+      ['Item Mine Shockwave', 'Shockwave Mine'], ['Item Mine Stun', 'Trapzap']
+    ]
+  },
+  {
+    label: 'Curación',
+    options: [
+      ['Item Health Pack Small', 'Small Health Pack (25)'], ['Item Health Pack Medium', 'Medium Health Pack (50)'],
+      ['Item Health Pack Large', 'Large Health Pack (100)'], ['Item ReviveItem', 'Defibro']
+    ]
+  },
+  {
+    label: 'Drones',
+    options: [
+      ['Item Drone Battery', 'Recharge Drone'], ['Item Drone Feather', 'Feather Drone'],
+      ['Item Drone Indestructible', 'Indestructible Drone'], ['Item Drone Torque', 'Roll Drone'],
+      ['Item Drone Zero Gravity', 'Zero Gravity Drone']
+    ]
+  },
+  {
+    label: 'Carros C.A.R.T.',
+    options: [
+      ['Item Cart Small', 'POCKET C.A.R.T.'], ['Item Cart Medium', 'C.A.R.T.'],
+      ['Item Cart Cannon', 'C.A.R.T. Cannon'], ['Item Cart Laser', 'C.A.R.T. Laser']
+    ]
+  },
+  {
+    label: 'Varas, orbes y vehículos',
+    options: [
+      ['Item Staff Torque', 'Roll Staff'], ['Item Staff Void', 'Void Staff'],
+      ['Item Staff Zero Gravity', 'Zero Gravity Staff'], ['Item Orb Zero Gravity', 'Zero Gravity Orb'],
+      ['Item Vehicle Semiscooter', 'Hauler'], ['Item Vehicle Semiscooter Small', 'Scout']
+    ]
+  },
+  {
+    label: 'Mejoras (upgrades)',
+    options: [
+      ['Item Upgrade Player Health', 'Health Upgrade'], ['Item Upgrade Player Energy', 'Stamina Upgrade'],
+      ['Item Upgrade Player Extra Jump', 'Extra Jump Upgrade'], ['Item Upgrade Player Sprint Speed', 'Sprint Speed Upgrade'],
+      ['Item Upgrade Player Grab Range', 'Range Upgrade'], ['Item Upgrade Player Grab Strength', 'Strength Upgrade'],
+      ['Item Upgrade Player Crouch Rest', 'Crouch Rest Upgrade'], ['Item Upgrade Player Tumble Climb', 'Tumble Climb Upgrade'],
+      ['Item Upgrade Player Tumble Launch', 'Tumble Launch Upgrade'], ['Item Upgrade Player Tumble Wings', 'Tumble Wings Upgrade'],
+      ['Item Upgrade Death Head Battery', 'Death Head Battery Upgrade'], ['Item Upgrade Map Player Count', 'Map Player Count Upgrade']
+    ]
+  },
+  {
+    label: 'Otros',
+    options: [
+      ['Item Rubber Duck', 'Rubber Duck'], ['Item Duck Bucket', 'Duck Bucket'], ['Item Leaf Blower', 'Leaf Blower'],
+      ['Item Phase Bridge', 'Phase Bridge'], ['Item Power Crystal', 'Energy Crystal'],
+      ['Item Extraction Tracker', 'Extraction Tracker'], ['Item Valuable Tracker', 'Valuable Tracker'],
+      ['Item WalkieTalkieBox', 'Semibot Walkies']
+    ]
+  }
+];
+
+// Arma el <select> con grupos. Si la accion ya tenia guardado un valor que no
+// esta en la lista (ej. algo escrito a mano antes), se conserva como opcion.
+function repoSelectHtml(field, current, groups) {
+  const known = new Set();
+  const body = groups.map(g =>
+    `<optgroup label="${escapeHtml(g.label)}">` +
+    g.options.map(([value, label]) => {
+      known.add(value);
+      return `<option value="${escapeHtml(value)}" ${current === value ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+    }).join('') +
+    `</optgroup>`
+  ).join('');
+  const custom = current && !known.has(current)
+    ? `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)} (personalizado)</option>`
+    : '';
+  return `<select data-a-field="${field}" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px; max-width:240px;">` +
+    `<option value="" ${!current ? 'selected' : ''}>Ninguno</option>` +
+    custom + body +
+    `</select>`;
+}
+
 function renderActionsList(profile) {
   const list = document.getElementById('actionsList');
   list.style.maxHeight = '65vh';
@@ -564,9 +694,9 @@ function renderActionsList(profile) {
         </div>
         <div class="field-row"><span>R.E.P.O.: Duración de la gravedad (segundos)</span><input type="number" step="1" min="1" value="${a.repoGravitySeconds || 15}" data-a-field="repoGravitySeconds" placeholder="15" /></div>
         <div class="field-row"><span>R.E.P.O.: Restaurar luces ya (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.repoRestoreLighting || 0}" data-a-field="repoRestoreLighting" placeholder="1 o 0" /></div>
-        <div class="field-row"><span>R.E.P.O.: Spawnear enemigo (nombre o parte del nombre, "random" = al azar, vacío = no)</span><input type="text" value="${escapeHtml(a.repoSpawnEnemy || '')}" data-a-field="repoSpawnEnemy" placeholder="Gnome, Duck, 4 Ducks, random..." /></div>
+        <div class="field-row"><span>R.E.P.O.: Spawnear enemigo (elegí uno de la lista)</span>${repoSelectHtml('repoSpawnEnemy', a.repoSpawnEnemy, REPO_ENEMY_GROUPS)}</div>
         <div class="field-row"><span>R.E.P.O.: Cantidad de enemigos (más de 1 = horda)</span><input type="number" step="1" min="1" max="20" value="${a.repoEnemyCount || 1}" data-a-field="repoEnemyCount" placeholder="1" /></div>
-        <div class="field-row"><span>R.E.P.O.: Spawnear arma o item (nombre, "random_weapon" = arma al azar, vacío = no)</span><input type="text" value="${escapeHtml(a.repoSpawnItem || '')}" data-a-field="repoSpawnItem" placeholder="shotgun, random_weapon..." /></div>
+        <div class="field-row"><span>R.E.P.O.: Spawnear arma o item (elegí uno de la lista)</span>${repoSelectHtml('repoSpawnItem', a.repoSpawnItem, REPO_ITEM_GROUPS)}</div>
         <div class="field-row"><span>R.E.P.O.: Cantidad de armas o items</span><input type="number" step="1" min="1" max="20" value="${a.repoItemCount || 1}" data-a-field="repoItemCount" placeholder="1" /></div>
       </details>
       <div class="ac-row2">
