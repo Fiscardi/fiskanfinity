@@ -16,6 +16,7 @@ const crashMasks = require('./crashMasksMemory');
 const metalSlugBombs = require('./metalSlugBombsMemory');
 const metalSlugLives = require('./metalSlugLivesMemory');
 const { gta } = require('./gtaConnector');
+const { repo } = require('./repoConnector');
 // Libreria externa solo para RESOLVER "nombre de cancion" -> videoId de
 // YouTube (busqueda de texto). El control real de reproduccion (poner la
 // cancion en la cola) va siempre por la API local de la app de YouTube
@@ -569,6 +570,28 @@ let giftsSource = cachedGifts.source;
     if (action.gtaChiliadStop) {
       gta.chiliadStop().catch(() => {});
     }
+
+    // ---------- R.E.P.O. (mod FiskLiveREPO, via TCP local puerto 8422) ----------
+    // Igual que GTA: no esperamos la respuesta y, si el juego esta cerrado,
+    // el conector solo lo loguea y no rompe el resto de la accion.
+    if (action.repoBlackout) {
+      repo.blackout(Number(action.repoBlackout)).catch(() => {});
+    }
+    if (action.repoTimeScale) {
+      repo.timeScale(Number(action.repoTimeScale), Number(action.repoTimeScaleSeconds) || 10).catch(() => {});
+    }
+    if (action.repoGravity) {
+      repo.gravity(action.repoGravity, Number(action.repoGravitySeconds) || 15).catch(() => {});
+    }
+    if (action.repoRestoreLighting) {
+      repo.restoreLighting().catch(() => {});
+    }
+    if (action.repoSpawnEnemy) {
+      repo.spawnEnemy(action.repoSpawnEnemy, Number(action.repoEnemyCount) || 1).catch(() => {});
+    }
+    if (action.repoSpawnItem) {
+      repo.spawnItem(action.repoSpawnItem, Number(action.repoItemCount) || 1).catch(() => {});
+    }
   }
 
   // Revisa los eventos configurados del perfil activo y dispara los que matcheen
@@ -751,7 +774,7 @@ let giftsSource = cachedGifts.source;
     });
   }
 
-  async function connectToTikTok(username) {
+  async function connectToTikTok(username, forceMode) {
     if (tiktokConnection) {
       try { tiktokConnection.disconnect(); } catch (e) { /* noop */ }
       tiktokConnection = null;
@@ -772,7 +795,9 @@ let giftsSource = cachedGifts.source;
       uniqueId: username,
       apiKey,
       autoReconnect: true,
-      maxReconnectAttempts: 5
+      maxReconnectAttempts: 5,
+      // forceMode = 'relayed' se usa solo como plan B (ver el catch de abajo)
+      ...(forceMode ? { mode: forceMode } : {})
     });
 
     if (store.getActive().overlays.ranking.resetOnConnect) resetRanking();
@@ -860,7 +885,15 @@ let giftsSource = cachedGifts.source;
       await tiktokConnection.connect();
       connectionState = { connected: true, username, roomId: tiktokConnection.roomId || null, error: null };
     } catch (err) {
-      connectionState = { connected: false, username, roomId: null, error: err.message || String(err) };
+      const msg = err.message || String(err);
+      // Plan B: el modo directo (por defecto) pide la cookie de sesion a TikTok
+      // desde tu conexion. Si eso falla, reintentamos una vez por el modo
+      // "relayed" de TikTool, que no depende de tu conexion directa con TikTok.
+      if (!forceMode && /session cookie/i.test(msg)) {
+        console.warn('Conexion directa con TikTok fallo (' + msg + '). Reintentando en modo relayed...');
+        return connectToTikTok(username, 'relayed');
+      }
+      connectionState = { connected: false, username, roomId: null, error: msg };
     }
     broadcastStatus();
     return connectionState;
