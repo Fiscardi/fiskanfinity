@@ -267,6 +267,74 @@ function renderLog() {
     </div>`).join('');
 }
 
+// ---------- Chat en vivo (réplica del chat de TikTok) ----------
+let liveFeedEntries = [];
+let liveFeedHistoryLoaded = false;
+
+function pushLiveFeedEntry(entry) {
+  liveFeedEntries.push(entry);
+  if (liveFeedEntries.length > 300) liveFeedEntries = liveFeedEntries.slice(-300);
+  renderLiveFeed();
+}
+
+function renderLiveFeedRow(e) {
+  const time = e.timestamp ? new Date(e.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : '';
+  const initial = (e.user || '?').trim().charAt(0).toUpperCase() || '?';
+  const avatarHtml = e.avatar
+    ? `<img class="lc-avatar" src="${escapeHtml(e.avatar)}" onerror="this.outerHTML='<div class=\\'lc-avatar lc-avatar-fallback\\'>${initial}</div>'" />`
+    : `<div class="lc-avatar lc-avatar-fallback">${initial}</div>`;
+
+  let body;
+  if (e.kind === 'follow') {
+    body = `<span class="lc-user">${escapeHtml(e.user)}</span> <span class="lc-action lc-follow">empezó a seguirte 🆕</span>`;
+  } else if (e.kind === 'gift') {
+    const countTxt = e.count && e.count > 1 ? ` x${e.count}` : '';
+    body = `<span class="lc-user">${escapeHtml(e.user)}</span> <span class="lc-action lc-gift">envió ${escapeHtml(e.text || 'un regalo')}${countTxt} 🎁</span>`;
+  } else {
+    body = `<span class="lc-user">${escapeHtml(e.user)}:</span> <span class="lc-text">${escapeHtml(e.text || '')}</span>`;
+  }
+
+  return `
+    <div class="lc-row lc-${escapeHtml(e.kind || 'chat')}">
+      ${avatarHtml}
+      <div class="lc-body">${body}</div>
+      <span class="lc-time mono">${time}</span>
+    </div>`;
+}
+
+function renderLiveFeed() {
+  const box = document.getElementById('liveChatList');
+  if (!box) return;
+  const wasAtBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 40;
+
+  if (liveFeedEntries.length === 0) {
+    box.innerHTML = '<div class="log-empty">Los mensajes del chat, seguidores nuevos y regalos van a aparecer acá en tiempo real.</div>';
+    return;
+  }
+
+  box.innerHTML = liveFeedEntries.map(renderLiveFeedRow).join('');
+  if (wasAtBottom) box.scrollTop = box.scrollHeight;
+}
+
+async function loadLiveFeedHistory() {
+  if (liveFeedHistoryLoaded) { renderLiveFeed(); return; }
+  liveFeedHistoryLoaded = true;
+  try {
+    const history = await api('/api/livefeed/history');
+    if (Array.isArray(history) && history.length) {
+      // Si ya llegaron entradas nuevas por WebSocket mientras tanto, el
+      // historial va primero (son mas viejas).
+      liveFeedEntries = history.concat(liveFeedEntries).slice(-300);
+    }
+  } catch (err) { /* noop */ }
+  renderLiveFeed();
+}
+
+document.getElementById('liveChatClearBtn').addEventListener('click', () => {
+  liveFeedEntries = [];
+  renderLiveFeed();
+});
+
 function wireEventsCard() {
   const sendGiftBtn = document.getElementById('sendTestGift');
   if (sendGiftBtn) {
@@ -434,6 +502,9 @@ function logIncoming(msg) {
       if (msg.payload.connected) pushLog('🟢', 'Conectado', '@' + msg.payload.username);
       else if (msg.payload.error) pushLog('🔴', 'Estado', msg.payload.error);
       break;
+    case 'liveFeed':
+      pushLiveFeedEntry(msg.payload);
+      break;
     case 'songRequest':
       if (msg.payload.ok) {
         pushLog('🎵', `Pedido de ${msg.payload.requestedBy}`, msg.payload.title);
@@ -460,8 +531,10 @@ function switchNav(nav) {
     btn.classList.toggle('active', key === nav);
   });
   document.getElementById('cardsGrid').style.display = nav === 'overlays' ? 'grid' : 'none';
-  document.getElementById('gameDetailView').style.display = nav === 'overlays' ? 'none' : 'block';
-  if (nav !== 'overlays') renderActionsAndEvents();
+  document.getElementById('liveChatView').style.display = nav === 'livechat' ? 'flex' : 'none';
+  document.getElementById('gameDetailView').style.display = (nav === 'overlays' || nav === 'livechat') ? 'none' : 'block';
+  if (nav === 'livechat') loadLiveFeedHistory();
+  if (nav !== 'overlays' && nav !== 'livechat') renderActionsAndEvents();
 }
 
 function currentGameFilterId() {
@@ -475,136 +548,6 @@ function renderActionsAndEvents() {
   renderGameMetaBox();
   renderActionsList(profile);
   renderEventsTable(profile);
-}
-
-// ---------- R.E.P.O.: catalogos para los desplegables ----------
-// Sacados de los logs del juego (50 enemigos, 59 items). El valor guardado es el
-// nombre interno exacto, que el mod FiskLiveREPO reconoce sin ambiguedad.
-const REPO_ENEMY_GROUPS = [
-  { label: 'Al azar', options: [['random', 'Enemigo al azar (uno individual distinto cada vez)']] },
-  {
-    label: 'Enemigos individuales',
-    options: [
-      'Tricycle', 'Tick', 'Elsa', 'Ceiling Eye', 'Gnome', 'Duck', 'Slow Mouth', 'Thin Man',
-      'Birthday Boy', 'Valuable Thrower', 'Animal', 'Upscream', 'Hidden', 'Tumbler', 'Bowtie',
-      'Floater', 'Bang', 'Spinny', 'Heart Hugger', 'Head Grabber', 'Oogly', 'Head',
-      'Bomb Thrower', 'Runner', 'Robe', 'Beamer', 'Shadow', 'Slow Walker', 'Hunter'
-    ].map(n => ['Enemy - ' + n, n])
-  },
-  {
-    label: 'Grupos (vienen varios juntos)',
-    options: [
-      '2 Heart Huggers', '2 Hidden', '2 Spinny', '3 Animals', '3 Birthday Boys', '3 Bowties',
-      '3 Elsas', '3 Floaters', '3 Head Grabbers', '3 Ooglies', '3 Tricycles', '3 Tumblers',
-      '3 Upscreams', '3 Valuable Throwers', '4 Ceiling Eyes', '4 Ducks', '4 Slow Mouths',
-      '4 Thin Men', '5 Ticks', '6 Bangs', '10 Gnomes'
-    ].map(n => ['Enemy Group - ' + n, n])
-  }
-];
-
-const REPO_ITEM_GROUPS = [
-  {
-    label: 'Al azar',
-    options: [
-      ['random_weapon', 'Arma al azar (pistola, cuerpo a cuerpo, granada o mina)'],
-      ['random', 'Item al azar (cualquiera)']
-    ]
-  },
-  {
-    label: 'Armas de fuego',
-    options: [
-      ['Item Gun Handgun', 'Gun'], ['Item Gun Shotgun', 'Shotgun'], ['Item Gun Tranq', 'Tranq Gun'],
-      ['Item Gun Stun', 'Boltzap'], ['Item Gun Shockwave', 'Pulse Pistol'], ['Item Gun Laser', 'Photon Blaster']
-    ]
-  },
-  {
-    label: 'Cuerpo a cuerpo',
-    options: [
-      ['Item Melee Sword', 'Sword'], ['Item Melee Baseball Bat', 'Baseball Bat'],
-      ['Item Melee Frying Pan', 'Frying Pan'], ['Item Melee Sledge Hammer', 'Sledge Hammer'],
-      ['Item Melee Inflatable Hammer', 'Inflatable Hammer'], ['Item Melee Stun Baton', 'Prodzap']
-    ]
-  },
-  {
-    label: 'Granadas y minas',
-    options: [
-      ['Item Grenade Explosive', 'Grenade'], ['Item Grenade Stun', 'Stun Grenade'],
-      ['Item Grenade Shockwave', 'Shockwave Grenade'], ['Item Grenade Human', 'Human Grenade'],
-      ['Item Grenade Duct Taped', 'Duct Taped Grenades'], ['Item Mine Explosive', 'Explosive Mine'],
-      ['Item Mine Shockwave', 'Shockwave Mine'], ['Item Mine Stun', 'Trapzap']
-    ]
-  },
-  {
-    label: 'Curación',
-    options: [
-      ['Item Health Pack Small', 'Small Health Pack (25)'], ['Item Health Pack Medium', 'Medium Health Pack (50)'],
-      ['Item Health Pack Large', 'Large Health Pack (100)'], ['Item ReviveItem', 'Defibro']
-    ]
-  },
-  {
-    label: 'Drones',
-    options: [
-      ['Item Drone Battery', 'Recharge Drone'], ['Item Drone Feather', 'Feather Drone'],
-      ['Item Drone Indestructible', 'Indestructible Drone'], ['Item Drone Torque', 'Roll Drone'],
-      ['Item Drone Zero Gravity', 'Zero Gravity Drone']
-    ]
-  },
-  {
-    label: 'Carros C.A.R.T.',
-    options: [
-      ['Item Cart Small', 'POCKET C.A.R.T.'], ['Item Cart Medium', 'C.A.R.T.'],
-      ['Item Cart Cannon', 'C.A.R.T. Cannon'], ['Item Cart Laser', 'C.A.R.T. Laser']
-    ]
-  },
-  {
-    label: 'Varas, orbes y vehículos',
-    options: [
-      ['Item Staff Torque', 'Roll Staff'], ['Item Staff Void', 'Void Staff'],
-      ['Item Staff Zero Gravity', 'Zero Gravity Staff'], ['Item Orb Zero Gravity', 'Zero Gravity Orb'],
-      ['Item Vehicle Semiscooter', 'Hauler'], ['Item Vehicle Semiscooter Small', 'Scout']
-    ]
-  },
-  {
-    label: 'Mejoras (upgrades)',
-    options: [
-      ['Item Upgrade Player Health', 'Health Upgrade'], ['Item Upgrade Player Energy', 'Stamina Upgrade'],
-      ['Item Upgrade Player Extra Jump', 'Extra Jump Upgrade'], ['Item Upgrade Player Sprint Speed', 'Sprint Speed Upgrade'],
-      ['Item Upgrade Player Grab Range', 'Range Upgrade'], ['Item Upgrade Player Grab Strength', 'Strength Upgrade'],
-      ['Item Upgrade Player Crouch Rest', 'Crouch Rest Upgrade'], ['Item Upgrade Player Tumble Climb', 'Tumble Climb Upgrade'],
-      ['Item Upgrade Player Tumble Launch', 'Tumble Launch Upgrade'], ['Item Upgrade Player Tumble Wings', 'Tumble Wings Upgrade'],
-      ['Item Upgrade Death Head Battery', 'Death Head Battery Upgrade'], ['Item Upgrade Map Player Count', 'Map Player Count Upgrade']
-    ]
-  },
-  {
-    label: 'Otros',
-    options: [
-      ['Item Rubber Duck', 'Rubber Duck'], ['Item Duck Bucket', 'Duck Bucket'], ['Item Leaf Blower', 'Leaf Blower'],
-      ['Item Phase Bridge', 'Phase Bridge'], ['Item Power Crystal', 'Energy Crystal'],
-      ['Item Extraction Tracker', 'Extraction Tracker'], ['Item Valuable Tracker', 'Valuable Tracker'],
-      ['Item WalkieTalkieBox', 'Semibot Walkies']
-    ]
-  }
-];
-
-// Arma el <select> con grupos. Si la accion ya tenia guardado un valor que no
-// esta en la lista (ej. algo escrito a mano antes), se conserva como opcion.
-function repoSelectHtml(field, current, groups) {
-  const known = new Set();
-  const body = groups.map(g =>
-    `<optgroup label="${escapeHtml(g.label)}">` +
-    g.options.map(([value, label]) => {
-      known.add(value);
-      return `<option value="${escapeHtml(value)}" ${current === value ? 'selected' : ''}>${escapeHtml(label)}</option>`;
-    }).join('') +
-    `</optgroup>`
-  ).join('');
-  const custom = current && !known.has(current)
-    ? `<option value="${escapeHtml(current)}" selected>${escapeHtml(current)} (personalizado)</option>`
-    : '';
-  return `<select data-a-field="${field}" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px; max-width:240px;">` +
-    `<option value="" ${!current ? 'selected' : ''}>Ninguno</option>` +
-    custom + body +
-    `</select>`;
 }
 
 function renderActionsList(profile) {
@@ -677,27 +620,6 @@ function renderActionsList(profile) {
         <summary style="cursor:pointer; padding:6px 0; font-weight:600; color:var(--cyan,#4dd0e1); user-select:none;">GTA V: Monte Chiliad</summary>
         <div class="field-row"><span>GTA: Iniciar desafío Monte Chiliad (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaChiliadStart || 0}" data-a-field="gtaChiliadStart" placeholder="1 o 0" /></div>
         <div class="field-row"><span>GTA: Detener desafío Monte Chiliad (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.gtaChiliadStop || 0}" data-a-field="gtaChiliadStop" placeholder="1 o 0" /></div>
-      </details>
-
-      <details class="field-group" style="margin:8px 0; border:1px solid rgba(255,255,255,0.1); border-radius:6px; padding:4px 10px;">
-        <summary style="cursor:pointer; padding:6px 0; font-weight:600; color:var(--cyan,#4dd0e1); user-select:none;">R.E.P.O.</summary>
-        <div class="field-row"><span>R.E.P.O.: Apagón de luces por X segundos (0 = no activar)</span><input type="number" step="1" min="0" value="${a.repoBlackout || 0}" data-a-field="repoBlackout" placeholder="8" /></div>
-        <div class="field-row"><span>R.E.P.O.: Velocidad del tiempo (0.3 = cámara lenta, 2 = rápido, 0 = no activar)</span><input type="number" step="0.1" min="0" max="3" value="${a.repoTimeScale || 0}" data-a-field="repoTimeScale" placeholder="0.3" /></div>
-        <div class="field-row"><span>R.E.P.O.: Duración de la velocidad del tiempo (segundos)</span><input type="number" step="1" min="1" value="${a.repoTimeScaleSeconds || 10}" data-a-field="repoTimeScaleSeconds" placeholder="10" /></div>
-        <div class="field-row"><span>R.E.P.O.: Gravedad (elegí un preset o dejá en ninguna)</span>
-          <select data-a-field="repoGravity" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px;">
-            <option value="" ${!a.repoGravity ? 'selected' : ''}>Ninguna</option>
-            <option value="liviana" ${a.repoGravity === 'liviana' ? 'selected' : ''}>Liviana</option>
-            <option value="pesada" ${a.repoGravity === 'pesada' ? 'selected' : ''}>Pesada</option>
-            <option value="invertida" ${a.repoGravity === 'invertida' ? 'selected' : ''}>Invertida</option>
-          </select>
-        </div>
-        <div class="field-row"><span>R.E.P.O.: Duración de la gravedad (segundos)</span><input type="number" step="1" min="1" value="${a.repoGravitySeconds || 15}" data-a-field="repoGravitySeconds" placeholder="15" /></div>
-        <div class="field-row"><span>R.E.P.O.: Restaurar luces ya (1 = si, 0 = no)</span><input type="number" step="1" min="0" max="1" value="${a.repoRestoreLighting || 0}" data-a-field="repoRestoreLighting" placeholder="1 o 0" /></div>
-        <div class="field-row"><span>R.E.P.O.: Spawnear enemigo (elegí uno de la lista)</span>${repoSelectHtml('repoSpawnEnemy', a.repoSpawnEnemy, REPO_ENEMY_GROUPS)}</div>
-        <div class="field-row"><span>R.E.P.O.: Cantidad de enemigos (más de 1 = horda)</span><input type="number" step="1" min="1" max="20" value="${a.repoEnemyCount || 1}" data-a-field="repoEnemyCount" placeholder="1" /></div>
-        <div class="field-row"><span>R.E.P.O.: Spawnear arma o item (elegí uno de la lista)</span>${repoSelectHtml('repoSpawnItem', a.repoSpawnItem, REPO_ITEM_GROUPS)}</div>
-        <div class="field-row"><span>R.E.P.O.: Cantidad de armas o items</span><input type="number" step="1" min="1" max="20" value="${a.repoItemCount || 1}" data-a-field="repoItemCount" placeholder="1" /></div>
       </details>
       <div class="ac-row2">
         <select data-a-field="webhookMethod" title="Método del webhook" style="background:var(--bg); border:1px solid var(--line); color:var(--text); border-radius:6px; font-size:12px; padding:5px;">
