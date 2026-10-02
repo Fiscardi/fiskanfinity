@@ -16,7 +16,6 @@ const crashMasks = require('./crashMasksMemory');
 const metalSlugBombs = require('./metalSlugBombsMemory');
 const metalSlugLives = require('./metalSlugLivesMemory');
 const { gta } = require('./gtaConnector');
-const { repo } = require('./repoConnector');
 // Libreria externa solo para RESOLVER "nombre de cancion" -> videoId de
 // YouTube (busqueda de texto). El control real de reproduccion (poner la
 // cancion en la cola) va siempre por la API local de la app de YouTube
@@ -389,6 +388,22 @@ let giftsSource = cachedGifts.source;
     });
   }
 
+  // Replica en vivo del chat de TikTok (chat, seguidores nuevos, regalos),
+  // pensada para el panel propio de FiskLive. A proposito NO depende de
+  // ninguna config de overlay (TTS, alertas, etc) - siempre muestra todo,
+  // para que el streamer pueda ver su chat real sin tener que prender
+  // nada mas. Guardamos tambien un historial corto en memoria para que al
+  // abrir el panel no arranque vacio.
+  const liveFeedHistory = [];
+  const LIVE_FEED_HISTORY_MAX = 200;
+
+  function broadcastLiveFeed(entry) {
+    const full = { ...entry, timestamp: Date.now() };
+    liveFeedHistory.push(full);
+    if (liveFeedHistory.length > LIVE_FEED_HISTORY_MAX) liveFeedHistory.shift();
+    broadcast('liveFeed', full);
+  }
+
   function broadcastStatus() {
     broadcast('status', connectionState);
   }
@@ -570,28 +585,6 @@ let giftsSource = cachedGifts.source;
     if (action.gtaChiliadStop) {
       gta.chiliadStop().catch(() => {});
     }
-
-    // ---------- R.E.P.O. (mod FiskLiveREPO, via TCP local puerto 8422) ----------
-    // Igual que GTA: no esperamos la respuesta y, si el juego esta cerrado,
-    // el conector solo lo loguea y no rompe el resto de la accion.
-    if (action.repoBlackout) {
-      repo.blackout(Number(action.repoBlackout)).catch(() => {});
-    }
-    if (action.repoTimeScale) {
-      repo.timeScale(Number(action.repoTimeScale), Number(action.repoTimeScaleSeconds) || 10).catch(() => {});
-    }
-    if (action.repoGravity) {
-      repo.gravity(action.repoGravity, Number(action.repoGravitySeconds) || 15).catch(() => {});
-    }
-    if (action.repoRestoreLighting) {
-      repo.restoreLighting().catch(() => {});
-    }
-    if (action.repoSpawnEnemy) {
-      repo.spawnEnemy(action.repoSpawnEnemy, Number(action.repoEnemyCount) || 1).catch(() => {});
-    }
-    if (action.repoSpawnItem) {
-      repo.spawnItem(action.repoSpawnItem, Number(action.repoItemCount) || 1).catch(() => {});
-    }
   }
 
   // Revisa los eventos configurados del perfil activo y dispara los que matcheen
@@ -683,6 +676,16 @@ let giftsSource = cachedGifts.source;
     }
 
     checkEvents('gift', { user: displayName, gift: giftName, count: event.repeatCount || 1, diamonds });
+
+    broadcastLiveFeed({
+      kind: 'gift',
+      user: displayName,
+      avatar: event.user?.profilePictureUrl || null,
+      badges: event.user?.badges || [],
+      text: giftName,
+      count: event.repeatCount || 1,
+      diamonds
+    });
   }
 
   function handleFollowEvent(event) {
@@ -697,6 +700,13 @@ let giftsSource = cachedGifts.source;
       });
     }
     checkEvents('follow', { user: displayName });
+
+    broadcastLiveFeed({
+      kind: 'follow',
+      user: displayName,
+      avatar: event.user?.profilePictureUrl || null,
+      badges: event.user?.badges || []
+    });
   }
 
   function handleSubscribeEvent(event) {
@@ -869,6 +879,17 @@ let giftsSource = cachedGifts.source;
       handleSongRequestCommand(event).catch(err => {
         console.error('Error procesando pedido de cancion:', err.message);
       });
+
+      const comment = (event.comment || '').trim();
+      if (comment) {
+        broadcastLiveFeed({
+          kind: 'chat',
+          user: event.user?.nickname || event.user?.uniqueId || 'Alguien',
+          avatar: event.user?.profilePictureUrl || null,
+          badges: event.user?.badges || [],
+          text: comment
+        });
+      }
     });
 
     tiktokConnection.on('roomUserSeq', event => {
@@ -931,6 +952,8 @@ let giftsSource = cachedGifts.source;
   });
 
   // ---- YouTube Music (pedidos de canciones por chat) ----
+  app.get('/api/livefeed/history', (req, res) => res.json(liveFeedHistory));
+
   app.get('/api/ytmusic/status', (req, res) => res.json({
     ...ytMusicStatus,
     paired: !!config.get('ytMusicToken')
