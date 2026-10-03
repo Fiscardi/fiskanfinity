@@ -4,6 +4,51 @@
 <meta charset="UTF-8" />
 <title>FiskLive</title>
 <link rel="stylesheet" href="style.css" />
+<style>
+  /* Estilos del panel "Chat en vivo" — autocontenidos a propósito, para no
+     depender de clases de style.css que no están a la vista acá. */
+  .livechat-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 2px;
+    min-height: 0;
+  }
+  .lc-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.04);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+  .lc-row.lc-follow { background: rgba(80,160,255,0.10); }
+  .lc-row.lc-gift { background: rgba(255,190,60,0.10); }
+  .lc-avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    flex: 0 0 26px;
+    object-fit: cover;
+    background: #444;
+  }
+  .lc-avatar-fallback {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(135deg, #6a5acd, #ff5fa2);
+  }
+  .lc-body { flex: 1; min-width: 0; word-break: break-word; }
+  .lc-user { font-weight: 700; }
+  .lc-action.lc-follow { color: #6db4ff; }
+  .lc-action.lc-gift { color: #ffc34d; }
+  .lc-time { font-size: 11px; opacity: 0.5; flex: 0 0 auto; }
+</style>
 </head>
 <body>
 <div class="app">
@@ -29,6 +74,7 @@
       <h2>Navegación</h2>
       <button class="nav-item active" data-nav="overlays">🎛️ Overlays</button>
       <button class="nav-item" data-nav="general">⚡ General</button>
+      <button class="nav-item" data-nav="livechat">💬 Chat en vivo</button>
       <h2 style="margin-top:16px;">Juegos</h2>
       <div id="gamesNavList"></div>
       <button class="add-game-btn" id="addGameBtn">+ Nuevo juego</button>
@@ -37,6 +83,14 @@
 
     <main class="main">
       <div class="grid" id="cardsGrid"></div>
+      <div class="livechat-view" id="liveChatView" style="display:none; flex-direction:column; height:100%;">
+        <div class="av-head" style="padding:0 2px;">
+          <h3>Chat en vivo</h3>
+          <button class="small ghost" id="liveChatClearBtn">Limpiar</button>
+        </div>
+        <p class="av-hint">Réplica en tiempo real del chat de TikTok: mensajes, seguidores nuevos y regalos. No depende de ninguna config de overlay — siempre muestra todo, esté o no prendido el TTS.</p>
+        <div id="liveChatList" class="livechat-list"></div>
+      </div>
       <div class="game-detail-view" id="gameDetailView" style="display:none">
         <div id="gameMetaBox"></div>
         <div class="actions-view" id="actionsView">
